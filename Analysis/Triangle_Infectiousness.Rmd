@@ -1,0 +1,22 @@
+---
+title: "Staff testing model"
+author: "Chris Hoover et al"
+date: "4/5/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(triangle)
+```
+
+Building on [previous work](https://doi.org/10.1073/pnas.1616438114) investigating effects of non-pharmaceutical interventions on the transmission of infectious diseases using branching process models, can model individual contributions to infection through time, $r_t$ from an infectiousness profile generated from key biological parameters of the disease that determine the distribution of infectiousness over the course of the infection. Using a triangle distribution with infectiousness beginning after the latent period, ending after the duration of the entire infectious period, and peaking at some point in between ($a=t_{latent}$, $b=t_{tot}=t_{infectious}+t_{latent}$, $c=t_{peak};a\lt c\lt b $), the expected number of new cases generated at time $t$ is $r_{t}=R\beta_{t}$.
+
+In the presence of interventions that isolate infectious individuals prior to $t_{tot}$, e.g. through contact tracing, self-isolation following the onset of symptoms, or asymptomatic testing, the effect of isolation on $R$ can be directly estimated from the mean time to isolation as $R_{iso}=R\big(1-\int_{t_{iso}}^{t_{tot}}\beta_tdt\big)$, where $t_{iso}$ is the time at which isolation of infectious individuals occurs. Reducing $R$ via improved contact tracing or more frequent testing can thus be envisioned as removing a larger slice from the overall transmission triangle by reducing $t_{iso}$. The size of the slice removed is dependent on the shape of the overall triangle distribution, which is determined by $t_{tot}$ and $t_{peak}$, and the location of $t_{iso}$ in relation to $t_{peak}$. For instance, if $t_{iso}>t_{peak}$, then the proportional reduction in $R$ can be estimated as $\frac{2}{t_{infectious}(t_{tot}-t_{peak})}\int_{t_{iso}}^{t_{tot}}(t_{tot}-t)dt$.
+
+
+
+
+
+, whereas if $t_{iso}<t_{peak}$, reduction in $R$ is: $\frac{2(t_{tot}-t_{iso})}{t_{infectious}(t_{tot}-t_{peak})}+\frac{2}{t_{infectious}}+\frac{2(t_{iso})}{t_{infectious}(t_{peak}-t_{latent})}$
