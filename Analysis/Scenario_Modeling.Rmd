@@ -1,5 +1,5 @@
 ---
-title: "Scenario modeling"
+title: "Staff testing scenarios"
 author: "Chris Hoover et al"
 date: "4/20/2021"
 output: pdf_document
@@ -8,8 +8,6 @@ output: pdf_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, include = FALSE, eval = FALSE)
 ```
-
-## Model scenarios and simulation  
 
 ### Simulation framework  
 * All staff assigned a work schedule that determines time frames when they are working. $\mathbf{I}(w_{it})$ is an indicator function for whether staff member $i$ is working at the facility at time $t$. Work schedules can be simulated or drawn directly from CDCR data.  
@@ -24,7 +22,7 @@ knitr::opts_chunk$set(echo = FALSE, include = FALSE, eval = FALSE)
   - total infectious period ($t_{infectious}$)  
 to generate an infectiousness profile ($\beta_{it}$). Assuming constant $\mathcal{R}$ across all individuals, $r_{it}=\mathcal{R}\beta_{it}$  
 * Testing schedule determines when staff is tested    
-* For now assume that isolation only occurs after testing. Future sims can incorporate asymtpmatic rates and probability of self-isolating given symptom onset/duration of symptoms  
+* For now assume that isolation only occurs after testing. Future sims can incorporate asymptomatic rates and probability of self-isolating given symptom onset/duration of symptoms  
 * Main outcome is expected number of cases transmitted by staff over the simulation timeframe: $\mathbf{E}[cases]=\sum_{t=1}^{t_{sim}}\sum_{i=1}^n\mathbf{I}(w_{it})r_{it}$   
 
 ### Scenarios  
