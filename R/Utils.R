@@ -1,31 +1,77 @@
 library(triangle)
 
-# Parameters and transition functions  
-N_staff   <- 500
-comm_prev <- 0.005
-asymp_frac <- 0.4
-
-# Latent period (time between infection and infectiousness)
-incubate_fx <- function(n){
-  rgamma(n, 4,1)
-}  
-
-# Presymptomatic period (Time between infectiousness and symptoms among symptomatic. t_presymp+t_latent=t_incubation)
-presymp_fx <- function(n){
-  rgamma(n,10,7)
+infectious_profile <- function(t_latent, t_peak, t_infectious, dt){
+  t_tot     <- t_latent + (t_peak-t_latent) + t_infectious
+  
+  dtriangle(x = seq(0, t_tot, by = dt),
+            a = t_latent,
+            b = t_tot,
+            c = t_peak)
 }
 
-# Duration of infectious period for asymptomatic cases
-asymp_fx <- function(n){
-  rgamma(n, 3, 1)
+R_iso <- function(t_latent, t_peak, t_infectious, t_iso, R){
+  t_tot     <- t_latent + (t_peak-t_latent) + t_infectious
+
+  if(t_iso <= t_latent){
+    
+    R_red <- 1
+    
+  } else {
+    
+    d_iso <- dtriangle(x = t_iso,
+                       a = t_latent,
+                       b = t_tot,
+                       c = t_peak)
+    
+    if(t_iso > t_peak){
+      
+      # Area of triangle made by t_iso
+      R_red <- d_iso*(t_tot - t_iso)/2 
+      
+    } else {
+      
+      d_peak <- dtriangle(x = t_peak,
+                          a = t_latent,
+                          b = t_tot,
+                          c = t_peak)
+      
+      # Area of triangle made by t_peak to t_tot plus area of trapezoid between t_iso and t_peak
+      R_red <- d_peak*(t_tot - t_peak)/2 + (d_iso+d_peak)*(t_peak - t_iso)/2
+      
+    }
+    
+  }
+  
+  return(R*(1-R_red))
 }
 
-# Duration of infectious period for symptomatic cases
-symp_fx <- function(n){
-  rgamma(n, 7, 1)
+R_iso_f <- function(t_latent, t_peak, t_infectious, t_freq, dt, R){
+  t_tot     <- t_latent + (t_peak-t_latent) + t_infectious
+  
+  beta_t <- dtriangle(x = seq(t_latent, t_tot, by = dt),
+                      a = t_latent,
+                      b = t_tot,
+                      c = t_peak)
+  
+  p_t_test <- (1-t_freq)^(seq(t_latent, t_tot, by = dt)-t_latent)
+  
+  R_iso_f <- R * sum(beta_t*p_t_test*dt)
+  
+  return(R_iso_f)
 }
 
-# 
-gen_triangle <- function(peak_i, max_i, interval){
-  dtriangle(seq(0, max_i, by = interval), a = 0, b = max_i, c = peak_i)
+q_025 <- function(vector){
+  quantile(vector, 0.025)
+}
+
+q_25 <- function(vector){
+  quantile(vector, 0.25)
+}
+
+q_75 <- function(vector){
+  quantile(vector, 0.75)
+}
+
+q_975 <- function(vector){
+  quantile(vector, 0.975)
 }
