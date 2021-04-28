@@ -101,6 +101,7 @@ workers <- lapply(1:n_staff, function(s){
   worker$t_infectious   <- t_inf
   worker$infectiousness <- numeric()
   worker$t_infect       <- -Inf
+  workers$delay         <- 0
   worker$work_schedule  <- schedule_fin
   worker$test_schedule  <- test_schedule
   
@@ -149,6 +150,7 @@ workers_testday1 <- lapply(1:n_staff, function(s){
   worker$t_infectious   <- t_inf
   worker$infectiousness <- numeric()
   worker$t_infect       <- -Inf
+  workers$delay         <- 0
   worker$work_schedule  <- schedule_fin
   worker$test_schedule  <- test_schedule
   
@@ -193,6 +195,7 @@ workers_testday2 <- lapply(1:n_staff, function(s){
   worker$t_infectious   <- t_inf
   worker$infectiousness <- numeric()
   worker$t_infect       <- -Inf
+  workers$delay         <- 0
   worker$work_schedule  <- schedule_fin
   worker$test_schedule  <- test_schedule
   
@@ -237,6 +240,7 @@ workers_testday3 <- lapply(1:n_staff, function(s){
   worker$t_infectious   <- t_inf
   worker$infectiousness <- numeric()
   worker$t_infect       <- -Inf
+  workers$delay         <- 0
   worker$work_schedule  <- schedule_fin
   worker$test_schedule  <- test_schedule
   
@@ -281,6 +285,7 @@ workers_testday4 <- lapply(1:n_staff, function(s){
   worker$t_infectious   <- t_inf
   worker$infectiousness <- numeric()
   worker$t_infect       <- -Inf
+  workers$delay         <- 0
   worker$work_schedule  <- schedule_fin
   worker$test_schedule  <- test_schedule
   
@@ -325,6 +330,7 @@ workers_testday13 <- lapply(1:n_staff, function(s){
   worker$t_infectious   <- t_inf
   worker$infectiousness <- numeric()
   worker$t_infect       <- -Inf
+  workers$delay         <- 0
   worker$work_schedule  <- schedule_fin
   worker$test_schedule  <- test_schedule
   
@@ -369,6 +375,7 @@ workers_testday24 <- lapply(1:n_staff, function(s){
   worker$t_infectious   <- t_inf
   worker$infectiousness <- numeric()
   worker$t_infect       <- -Inf
+  workers$delay         <- 0
   worker$work_schedule  <- schedule_fin
   worker$test_schedule  <- test_schedule
   
@@ -419,6 +426,7 @@ workers_testday_r1 <- lapply(1:n_staff, function(s){
   worker$t_infectious   <- t_inf
   worker$infectiousness <- numeric()
   worker$t_infect       <- -Inf
+  workers$delay         <- 0
   worker$work_schedule  <- schedule_fin
   worker$test_schedule  <- test_schedule
   
@@ -468,6 +476,7 @@ workers_testday_r2 <- lapply(1:n_staff, function(s){
   worker$t_infectious   <- t_inf
   worker$infectiousness <- numeric()
   worker$t_infect       <- -Inf
+  workers$delay         <- 0
   worker$work_schedule  <- schedule_fin
   worker$test_schedule  <- test_schedule
   
