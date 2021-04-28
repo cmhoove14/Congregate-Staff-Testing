@@ -1,4 +1,4 @@
-sim_work_transmission <- function(Lambda, alpha, R, workers, sim_t, dt, verbose = FALSE){
+sim_work_transmission <- function(Lambda, alpha, R, delay, workers, sim_t, dt, verbose = FALSE){
   
   exp_cases <- numeric(sim_t)
   tests_adm <- numeric(sim_t)
@@ -6,7 +6,7 @@ sim_work_transmission <- function(Lambda, alpha, R, workers, sim_t, dt, verbose 
   for(t in 1:sim_t){
     # Advance infections ----------
     states       <- unlist(lapply(workers, function(w) w$state))
-    infecteds    <- which(states %in% c("E", "I", "Q"))
+    infecteds    <- which(states %in% c("E", "I", "T", "Q"))
     
     for(i in infecteds){
       # Advance time infected
@@ -27,9 +27,18 @@ sim_work_transmission <- function(Lambda, alpha, R, workers, sim_t, dt, verbose 
     tested <- which(unlist(lapply(workers, function(w) w$test_schedule[t])) == 1)
     tests_adm[t] <- length(tested)
     
-    #Isolate if tested and infectious. Assumes test positive if infectious
+    # Testing conducted. Assumes test positive if infectious
     for(i in tested){
       if(workers[[i]]$state == "I"){
+        workers[[i]]$state <- "T"
+        workers[[i]]$delay <- delay
+      }
+    }
+    
+    # Test delay 
+    for(i in tested){
+      workers[[i]]$delay <- workers[[i]]$delay - 1
+      if(workers[[i]]$delay < 0){
         workers[[i]]$state <- "Q"
       }
     }
@@ -39,8 +48,8 @@ sim_work_transmission <- function(Lambda, alpha, R, workers, sim_t, dt, verbose 
     working <- which(unlist(lapply(workers, function(w) w$work_schedule[t])) == 1)
     
     # FOIs
-    Lambda_it          <- rep(Lambda*dt/2*(1-alpha), length(workers)) # Community infectivity. divide by 2 for two time periods spent in community vs only one in workplace
-    Lambda_it[working] <- Lambda*dt*alpha                           # Workplace infectivity for those working
+    Lambda_it          <- rep(Lambda*dt, length(workers)) # Community infectivity
+    Lambda_it[working] <- Lambda*dt*alpha                 # Workplace infectivity for those working
     
     # Bernoulli trials determine who is exposed, become infected if exposed and susceptible
     bernoullis <- rbinom(length(workers),1,Lambda_it)
@@ -70,6 +79,7 @@ sim_work_transmission <- function(Lambda, alpha, R, workers, sim_t, dt, verbose 
       cat("S -", sum(states_advanced=="S"), "  ",
           "E -", sum(states_advanced=="E"), "  ",
           "I -", sum(states_advanced=="I"), "  ",
+          "T -", sum(states_advanced=="T"), "  ",
           "Q -", sum(states_advanced=="Q"), "  ",
           "R -", sum(states_advanced=="R"), "\n")
     }
