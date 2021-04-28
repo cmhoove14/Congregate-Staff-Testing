@@ -1,4 +1,4 @@
-sim_work_transmission <- function(Lambda, alpha, R, delay, workers, sim_t, dt, verbose = FALSE){
+sim_work_transmission <- function(Lambda, alpha, R, delay, test_sens, workers, sim_t, dt, verbose = FALSE){
   
   exp_cases <- numeric(sim_t)
   tests_adm <- numeric(sim_t)
@@ -29,17 +29,17 @@ sim_work_transmission <- function(Lambda, alpha, R, delay, workers, sim_t, dt, v
     
     # Testing conducted. Assumes test positive if infectious
     for(i in tested){
-      if(workers[[i]]$state == "I"){
+      if(workers[[i]]$infectiousness[workers[[i]]$t_infect] > test_sens){
         workers[[i]]$state <- "T"
         workers[[i]]$delay <- delay
       }
     }
     
-    # Test delay 
-    for(i in tested){
-      workers[[i]]$delay <- workers[[i]]$delay - 1
-      if(workers[[i]]$delay < 0){
-        workers[[i]]$state <- "Q"
+    # Test delay and quarantine on notification of positive
+    for(t in which(states == "T")){
+      workers[[t]]$delay <- workers[[t]]$delay - 1
+      if(workers[[t]]$delay < 0){
+        workers[[t]]$state <- "Q"
       }
     }
     
