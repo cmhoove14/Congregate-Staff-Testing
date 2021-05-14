@@ -1,6 +1,10 @@
 library(triangle)
 
 infectious_profile <- function(t_latent, t_peak, t_infectious, dt){
+  if(t_latent > t_peak){
+    stop("Latent period ", t_latent,
+         "is greater than incubation period ", t_peak)
+  }
   t_tot     <- t_latent + (t_peak-t_latent) + t_infectious
   
   dtriangle(x = seq(0, t_tot, by = dt),
@@ -45,7 +49,7 @@ R_iso <- function(t_latent, t_peak, t_infectious, t_iso, R){
   return(R*(1-R_red))
 }
 
-R_iso_f <- function(t_latent, t_peak, t_infectious, t_freq, dt, R){
+R_iso_f <- function(t_latent, t_peak, t_infectious, t_freq, d, dt, R){
   t_tot     <- t_latent + (t_peak-t_latent) + t_infectious
   
   beta_t <- dtriangle(x = seq(t_latent, t_tot, by = dt),
@@ -53,7 +57,7 @@ R_iso_f <- function(t_latent, t_peak, t_infectious, t_freq, dt, R){
                       b = t_tot,
                       c = t_peak)
   
-  p_t_test <- (1-t_freq)^(seq(t_latent, t_tot, by = dt)-t_latent)
+  p_t_test <- (1-1/((t_freq^-1)+d))^(seq(t_latent, t_tot, by = dt)-t_latent)
   
   R_iso_f <- R * sum(beta_t*p_t_test*dt)
   
