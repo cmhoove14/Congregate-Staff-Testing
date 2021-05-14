@@ -6,13 +6,14 @@ output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE)
 
 library(triangle)
 library(tidyverse)
 library(patchwork)
 
 source(here::here("R/Utils.R"))
+source(here::here("R/Sim_Functions.R"))
 ```
 
 See [google doc](https://docs.google.com/document/d/1rBGXcljzWvMaS2X9_cOvQFejiESnM3zHGR0H7vRBQ8c/edit) for additional background/ideas/outlining  
@@ -126,10 +127,10 @@ ggsave(here::here("Plots/triangle_example_no_iso.png"),
 
 ```
 
-## Analytic results: influence of testing frequency on $t_{iso}$ and $\mathcal{R}_{iso}$  
+## Analytic results: influence of testing frequency and delay on $t_{iso}$ and $\mathcal{R}_{iso}$  
 Assuming testing is independent of symptoms, known contacts, and other reasons for explicitly seeking testing, we can estimate the probability of going $t$ days without being tested from the testing frequency, $f$, as $(1-f)^t$ and the probability that $t_{iso}\leq\tau$ as $\mathrm{P}(t_{iso}=\tau|f)=1-(1-f)^\tau$, assuming isolation occurs immediately after testing. Given substantial turnaround times between testing and isolation, particularly when relying on PCR-based tests, we can also incorporate the delay between testing and isolation, $d$, as: $\mathrm{P}(t_{iso}=\tau|f,d)=1-\Big(1-\frac{1}{f^{-1}+d}\Big)^\tau$, where $f^{-1}$ is simply the average number of days between tests.
 
-This allows for incorporation of the testing frequency into estimation of $\mathcal{R}_{iso}$ :  
+This allows for incorporation of the testing frequency and delay into estimation of $\mathcal{R}_{iso}$ :  
 $$\mathbb{E}[\mathcal{R}_{iso}|\beta_t,f,d]=\mathcal{R}\int_{\tau=t_{latent}}^{t_{infectious}}\beta_\tau\Big(1-\frac{1}{f^{-1}+d}\Big)^\tau d\tau$$
 
 ```{r p_tiso, echo = FALSE, fig.width=6, fig.height=4, fig.cap="Probability of going $t$ days without being tested given constant testing frequencies"}
@@ -168,39 +169,127 @@ p_iso_t_freq_plot <- fd_grid %>%
          tag = "D")
 ```
 
-
-
-```{r test_freq_r_red, echo = FALSE}
+```{r test_freq_r_red_par_uncertainty_distn, echo = FALSE}
 n_sims <- 100
 R_iso_test_freqs <- bind_rows(lapply(test_freqs, function(f){
   # Draw from distributions for key time periods
-  t_inc_samps <- rlnorm(n_sims, 1.63,0.5)
-  t_lnt_samps <- t_inc_samps + runif(n_sims, -2.5, 0)
-  t_inf_samps <- runif(n_sims, 6.5, 9.5)
+  inf_pars <- sim_inf_pars(n_sims)
   
-  R_iso_this <- sapply(1:n_sims, function(i){
+  t_inc_samps <- inf_pars[,1]
+  t_lnt_samps <- inf_pars[,2]
+  t_inf_samps <- inf_pars[,3]
+  
+  R_iso_d0 <- sapply(1:n_sims, function(i){
     R_iso_f(
       t_latent     = t_lnt_samps[i], 
       t_peak       = t_inc_samps[i], 
       t_infectious = t_inf_samps[i], 
       t_freq       = f, 
       dt           = dt, 
+      d            = 0,
       R            = base_R
     )
   })
   
-  return(tibble(R_isos = R_iso_this,
+  R_iso_d1 <- sapply(1:n_sims, function(i){
+    R_iso_f(
+      t_latent     = t_lnt_samps[i], 
+      t_peak       = t_inc_samps[i], 
+      t_infectious = t_inf_samps[i], 
+      t_freq       = f, 
+      dt           = dt, 
+      d            = 1,
+      R            = base_R
+    )
+  })
+
+  R_iso_d2 <- sapply(1:n_sims, function(i){
+    R_iso_f(
+      t_latent     = t_lnt_samps[i], 
+      t_peak       = t_inc_samps[i], 
+      t_infectious = t_inf_samps[i], 
+      t_freq       = f, 
+      dt           = dt, 
+      d            = 2,
+      R            = base_R
+    )
+  })
+    
+  return(tibble(R_isos = c(R_iso_d0, R_iso_d1, R_iso_d2),
+                delay  = c(rep(0, n_sims), rep(1, n_sims), rep(2, n_sims)),
                 t_freq = f))
 }))
 
+exp_R_iso_t_freq_plot <- R_iso_test_freqs %>% 
+  ggplot(aes(y = R_isos, x = as.factor(t_freq), col = as.factor(delay))) +
+    geom_boxplot() +
+    #geom_point(alpha = 0.5, size = 0.3, position = position_dodge2(0.5)) +
+    # stat_summary(fun = "median", #fun.min = "q_25", fun.max = "q_75",
+    #              position = position_dodge2(1),
+    #              size = 0.2) +
+    scale_x_discrete(labels = rev(1/test_freqs)) +
+    scale_color_manual(values = c("#ff7eca", "#00b7fe", "#4e4b8b")) +
+    ylim(c(0, base_R)) +
+    theme_classic() +
+    theme(axis.text = element_text(size = 11),
+        axis.title = element_text(size = 13)) +
+    labs(x = "Testing frequency (days)",
+         y = expression(R[iso]),
+         col = expression(italic(d)),
+         tag = "C")
+```
+
+
+```{r test_freq_r_red, eval = FALSE}
+R_iso_d0s <- sapply(test_freqs, function(f){
+    R_iso_f(
+      t_latent     = t_latent, 
+      t_peak       = t_peak, 
+      t_infectious = t_infect, 
+      t_freq       = f, 
+      dt           = dt, 
+      d            = 0,
+      R            = base_R
+    )
+  })
+
+R_iso_d1s <- sapply(test_freqs, function(f){
+    R_iso_f(
+      t_latent     = t_latent, 
+      t_peak       = t_peak, 
+      t_infectious = t_infect, 
+      t_freq       = f, 
+      dt           = dt, 
+      d            = 1,
+      R            = base_R
+    )
+  })
+
+R_iso_d2s <- sapply(test_freqs, function(f){
+    R_iso_f(
+      t_latent     = t_latent, 
+      t_peak       = t_peak, 
+      t_infectious = t_infect, 
+      t_freq       = f, 
+      dt           = dt, 
+      d            = 2,
+      R            = base_R
+    )
+  })
+
+R_iso_test_freqs <- tibble(R_isos = c(R_iso_d0s, R_iso_d1s, R_iso_d2s),
+                           delay  = c(rep(0, length(test_freqs)), 
+                                      rep(1, length(test_freqs)), 
+                                      rep(2, length(test_freqs))),
+                           t_freq = rep(test_freqs, times = 3))
 
 exp_R_iso_t_freq_plot <- R_iso_test_freqs %>% 
-  ggplot(aes(y = R_isos, x = as.factor(t_freq))) +
-    geom_violin(col = "#8176cc", alpha = 0.7) +
-    geom_point(col = "#4fbab7", alpha = 0.5, size = 0.3,
-               position = position_dodge2(0.5)) +
-    stat_summary(fun = "median",# fun.min = quantile(y,probs = 0.25), fun.max = quantile(probs = 0.75),
-                 geom = "crossbar",size = 0.2, width = 0.7) +
+  ggplot(aes(y = R_isos, x = as.factor(t_freq), col = as.factor(delay))) +
+    geom_violin(alpha = 0.7) +
+    #geom_point(alpha = 0.5, size = 0.3, position = position_dodge2(0.5)) +
+    stat_summary(fun = "median", #fun.min = "q_25", fun.max = "q_75",
+                 position = position_dodge2(1),
+                 size = 0.2) +
     scale_x_discrete(labels = rev(1/test_freqs)) +
     ylim(c(0, base_R)) +
     theme_classic() +
@@ -208,11 +297,12 @@ exp_R_iso_t_freq_plot <- R_iso_test_freqs %>%
         axis.title = element_text(size = 13)) +
     labs(x = "Testing frequency (days)",
          y = expression(R[iso]),
+         col = expression(italic(d)),
          tag = "C")
 ```
 
 
-```{r mod_schematic_plot, echo = FALSE, fig.width=8, fig.height=6, fig.cap="**Model framework and analytic results.** A) Example infectiousness profile for $\\mathcal{R}=1$, $t_{latent}=3.5$, $t_{peak}=5$, $t_{infectious}=10$, with shaded area demonstrating infectiousness slice removed if $t_{iso}=7$, leading to $\\mathcal{R}_{iso}=0.5$. B) $\\mathcal{R}_{iso}$ as a function of $t_{iso}$ with same parameters as in A and point indicating scenario depicted in A. C)  Violin plots showing distributions of $\\mathbb{E}[\\mathcal{R}_{iso}|\\beta_t,f]$ as a function of testing frequency, $f$, incorporating uncertainty in $t_{latent}$, $t_{peak}$, and $t_{infectious}$ by drawing $n=100$ parameter sets for each testing frequency indicated, with baseline $\\mathcal{R}=1$. Horizontal lines indicate median values of $\\mathbb{E}[\\mathcal{R}_{iso}|\\beta_t,f]$. D) Relationship between testing frequency, $f$, delay between test positive and isolation, $d$, and probability isolation occurs by day $t$, i.e. $t_{iso}\\leq t$."}
+```{r mod_schematic_plot, echo = FALSE, fig.width=8, fig.height=6, fig.cap="**Model framework and analytic results.** A) Example infectiousness profile for $\\mathcal{R}=1$, $t_{latent}=3.5$, $t_{peak}=5$, $t_{infectious}=10$, with shaded area demonstrating infectiousness slice removed if $t_{iso}=7$, leading to $\\mathcal{R}_{iso}=0.5$. B) $\\mathcal{R}_{iso}$ as a function of $t_{iso}$ with same parameters as in A and point indicating scenario depicted in A. C)  Boxplots showing distributions of $\\mathbb{E}[\\mathcal{R}_{iso}|\\beta_t,f,d]$ as a function of testing frequency, $f$, and test delay, $d$, incorporating uncertainty in $t_{latent}$, $t_{peak}$, and $t_{infectious}$ by drawing $n=100$ parameter sets for each, with baseline $\\mathcal{R}=1$. Boxplots indicate median, interquartile range, and full range of values of $\\mathbb{E}[\\mathcal{R}_{iso}|\\beta_t,f,d]$. D) Relationship between testing frequency, $f$, test delay, $d$, and probability isolation occurs by day $t$, i.e. $t_{iso}\\leq t$."}
 
 # Four panels with patchwork
 (tri_examp_plot / r_iso_t_iso_plot / exp_R_iso_t_freq_plot) | p_iso_t_freq_plot 
