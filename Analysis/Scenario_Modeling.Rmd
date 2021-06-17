@@ -1,5 +1,5 @@
 ---
-title: "Additional analyses"
+title: "Simulations"
 author: "Chris Hoover et al"
 date: "4/20/2021"
 output: pdf_document
@@ -833,6 +833,9 @@ sims_sum <- bind_rows(
                    .fns  = list("median", "q_025", "q_25", "q_75", "q_975"))) %>% 
   ungroup()
 
+a0_exp_cases_base <- sims_sum %>% 
+  filter(testday == "None") %>% 
+  pull(tot_cases_1)
 
 sims_cases_sum <- sims_sum %>% 
   mutate("Expected Cases" = paste0(round(tot_cases_1), " (", 
@@ -840,15 +843,652 @@ sims_cases_sum <- sims_sum %>%
                                    round(tot_cases_5), ")")) %>% 
   dplyr::select(scenario, delay, testday, testfreq, tot_cases_1, `Expected Cases`)
 
-sims_cases_sum %>% 
+sims_tests_sum <- sims_sum %>% 
+  mutate("Tests Conducted" = paste0(round(tot_tests_1), " (", 
+                                    round(tot_tests_3), " - ",
+                                    round(tot_tests_5), ")")) %>% 
+  dplyr::select(scenario, tot_tests_1, `Tests Conducted`)
+
+sims_all_sum <- sims_cases_sum %>% 
+  left_join(sims_tests_sum, by = "scenario") %>% 
+  mutate("Avoided/1000 Tests" = round((a0_exp_cases_base-tot_cases_1) / tot_tests_1 * 1000, 2))
+
+sims_all_sum %>% 
   arrange(-tot_cases_1) %>% 
-  dplyr::select(-tot_cases_1) %>% 
+  dplyr::select(-c(tot_cases_1, tot_tests_1)) %>% 
   knitr::kable(caption = "Expected cases imported into facility across different testing scenarios indicated by test frequency, $f$, test delay, $d$, and systematic vs random testing day.")
 
 ```
 
+This makes it clear that decreasing the delay between test and isolation is more important than increasing frequency. In addition, systematic testing is superior to random testing when infections are only acquired from the community, with systematic testing always resulting in fewer expected cases than random testing. Some systematic testing scenarios even perform similarly to random testing scenarios with higher frequency (e.g. compare S5 to S7). Systematic testing on the first day of the work week with instant turnaround (e.g. antigen testing) also results in the most cases avoided per test conducted.
+
 ## Sensitivity analyses  
-* Incorporate self isolation at symptom onset and proportion of symptomatic cases that adhere to self-isolation, proportion of cases symptomatic  
-  - whether the case will be asymptomatic or symptomatic ($p_{symp}$) drawn as parameter in addition to infectiousness parameters  
-* Antigen test sensitivity  
-* PCR turnaround time  
+### Self-isolation  
+Incorporate self-isolation at symptom onset with $p_{symp}=0.6$, meaning 60% of cases will have symptoms coinciding with peak infectiousness and will self-isolate.  
+
+**Could also just include this as a scenario on it's own in the table above?**  
+
+```{r test_runs_selfiso, echo=FALSE, eval = FALSE}
+no_tests <- sim_work_transmission_selfiso(Lambda    = 0.01*dt,
+                                          alpha     = 0,
+                                          R         = 1,
+                                          delay     = 0,
+                                          test_sens = 0,
+                                          workers   = workers,
+                                          sim_t     = sim_t,
+                                          dt        = dt,
+                                          p_symp    = 0.6,
+                                          verbose   = F)
+
+all_tests <-   sim_work_transmission_selfiso(Lambda = 0.01*dt,
+                                             alpha   = 0,
+                                             R       = 1,
+                                             delay   = 0,
+                                             test_sens = 0,
+                                             workers = workers_testday1234,
+                                             sim_t   = sim_t,
+                                             dt      = dt,
+                                             p_symp    = 0.6,
+                                             verbose = F)
+
+table(unlist(lapply(all_tests$workers, function(w) w$state[sim_t])))
+```
+
+```{r run_sims_alpha0_selfiso, echo = FALSE, cache = TRUE}
+# No testing  
+no_test_sims_a0_selfiso <- bind_rows(lapply(1:n_sims, function(x){
+  sim_work_transmission_selfiso(Lambda    = 0.01*dt,
+                                alpha     = 0,
+                                R         = 1,
+                                delay     = 0,
+                                test_sens = 0,
+                                workers   = workers,
+                                sim_t     = sim_t,
+                                dt        = dt,
+                                p_symp    = 0.6,
+                                verbose   = F)$cases_tests %>% 
+    mutate(sim = x,
+           scenario = "S1",
+           alpha = 0,
+           delay = 0,
+           testday = "None",
+           testfreq = 0)
+}))
+
+# Random pcr testing once per week
+test_r1_pcr_sims_a0_selfiso <- bind_rows(lapply(1:n_sims, function(x){
+  sim_work_transmission_selfiso(Lambda = 0.01*dt,
+                                alpha   = 0,
+                                R       = 1,
+                                delay   = 2/dt-1,
+                                test_sens = 0,
+                                workers = workers_testday_r1,
+                                sim_t   = sim_t,
+                                dt      = dt,
+                                p_symp    = 0.6,
+                                verbose = F)$cases_tests %>% 
+    mutate(sim = x,
+           scenario = "S2",
+           alpha = 0,
+           delay = 2,
+           testday = "rand",
+           testfreq = 1)
+}))
+
+
+# Random antigen testing once per week
+test_r1_ant_sims_a0_selfiso <- bind_rows(lapply(1:n_sims, function(x){
+  sim_work_transmission_selfiso(Lambda = 0.01*dt,
+                                alpha   = 0,
+                                R       = 1,
+                                delay   = 0,
+                                test_sens = 0,
+                                workers = workers_testday_r1,
+                                sim_t   = sim_t,
+                                dt      = dt,
+                                p_symp    = 0.6,
+                                verbose = F)$cases_tests %>% 
+    mutate(sim = x,
+           scenario = "S3",
+           alpha = 0,
+           delay = 0,
+           testday = "rand",
+           testfreq = 1)
+}))
+
+# pcr testing on first day of work week
+test_day1_pcr_sims_a0_selfiso <- bind_rows(lapply(1:n_sims, function(x){
+  sim_work_transmission_selfiso(Lambda = 0.01*dt,
+                                alpha   = 0,
+                                R       = 1,
+                                delay   = 2/dt-1,
+                                test_sens = 0,
+                                workers = workers_testday1,
+                                sim_t   = sim_t,
+                                dt      = dt,
+                                p_symp    = 0.6,
+                                verbose = F)$cases_tests %>% 
+    mutate(sim = x,
+           scenario = "S4",
+           alpha = 0,
+           delay = 2,
+           testday = "1",
+           testfreq = 1)
+}))
+
+
+# antigen testing on first day of work week
+test_day1_ant_sims_a0_selfiso <- bind_rows(lapply(1:n_sims, function(x){
+  sim_work_transmission_selfiso(Lambda = 0.01*dt,
+                                alpha   = 0,
+                                R       = 1,
+                                delay   = 0,
+                                test_sens = 0,
+                                workers = workers_testday1,
+                                sim_t   = sim_t,
+                                dt      = dt,
+                                p_symp    = 0.6,
+                                verbose = F)$cases_tests %>% 
+    mutate(sim = x,
+           scenario = "S5",
+           alpha = 0,
+           delay = 0,
+           testday = "1",
+           testfreq = 1)
+}))
+
+
+# Random pcr testing twice per week
+test_r2_pcr_sims_a0_selfiso <- bind_rows(lapply(1:n_sims, function(x){
+  sim_work_transmission_selfiso(Lambda = 0.01*dt,
+                                alpha   = 0,
+                                R       = 1,
+                                delay   = 2/dt-1,
+                                test_sens = 0,
+                                workers = workers_testday_r2,
+                                sim_t   = sim_t,
+                                dt      = dt,
+                                p_symp    = 0.6,
+                                verbose = F)$cases_tests %>% 
+    mutate(sim = x,
+           scenario = "S6",
+           alpha = 0,
+           delay = 2,
+           testday = "rand",
+           testfreq = 2)
+}))
+
+
+# Random antigen testing twice per week
+test_r2_ant_sims_a0_selfiso <- bind_rows(lapply(1:n_sims, function(x){
+  sim_work_transmission_selfiso(Lambda = 0.01*dt,
+                                alpha   = 0,
+                                R       = 1,
+                                delay   = 0,
+                                test_sens = 0,
+                                workers = workers_testday_r2,
+                                sim_t   = sim_t,
+                                dt      = dt,
+                                p_symp    = 0.6,
+                                verbose = F)$cases_tests %>% 
+    mutate(sim = x,
+           scenario = "S7",
+           alpha = 0,
+           delay = 0,
+           testday = "rand",
+           testfreq = 2)
+}))
+
+
+# pcr testing on first and third day of work week
+test_day13_pcr_sims_a0_selfiso <- bind_rows(lapply(1:n_sims, function(x){
+  sim_work_transmission_selfiso(Lambda = 0.01*dt,
+                                alpha   = 0,
+                                R       = 1,
+                                delay   = 2/dt-1,
+                                test_sens = 0,
+                                workers = workers_testday13,
+                                sim_t   = sim_t,
+                                dt      = dt,
+                                p_symp    = 0.6,
+                                verbose = F)$cases_tests %>% 
+    mutate(sim = x,
+           scenario = "S8",
+           alpha = 0,
+           delay = 2,
+           testday = "13",
+           testfreq = 2)
+}))
+
+
+# antigen testing on first and third day of work week
+test_day13_ant_sims_a0_selfiso <- bind_rows(lapply(1:n_sims, function(x){
+  sim_work_transmission_selfiso(Lambda = 0.01*dt,
+                                alpha   = 0,
+                                R       = 1,
+                                delay   = 0,
+                                test_sens = 0,
+                                workers = workers_testday13,
+                                sim_t   = sim_t,
+                                dt      = dt,
+                                p_symp    = 0.6,
+                                verbose = F)$cases_tests %>% 
+    mutate(sim = x,
+           scenario = "S9",
+           alpha = 0,
+           delay = 0,
+           testday = "13",
+           testfreq = 2)
+}))
+
+# pcr testing on first and third day of work week
+test_day1234_pcr_sims_a0_selfiso <- bind_rows(lapply(1:n_sims, function(x){
+  sim_work_transmission_selfiso(Lambda = 0.01*dt,
+                                alpha   = 0,
+                                R       = 1,
+                                delay   = 2/dt-1,
+                                test_sens = 0,
+                                workers = workers_testday1234,
+                                sim_t   = sim_t,
+                                dt      = dt,
+                                p_symp    = 0.6,
+                                verbose = F)$cases_tests %>% 
+    mutate(sim = x,
+           scenario = "S10",
+           alpha = 0,
+           delay = 2,
+           testday = "1234",
+           testfreq = 4)
+}))
+
+
+# antigen testing on first and third day of work week
+test_day1234_ant_sims_a0_selfiso <- bind_rows(lapply(1:n_sims, function(x){
+  sim_work_transmission_selfiso(Lambda = 0.01*dt,
+                                alpha   = 0,
+                                R       = 1,
+                                delay   = 0,
+                                test_sens = 0,
+                                workers = workers_testday1234,
+                                sim_t   = sim_t,
+                                dt      = dt,
+                                p_symp    = 0.6,
+                                verbose = F)$cases_tests %>% 
+    mutate(sim = x,
+           scenario = "S11",
+           alpha = 0,
+           delay = 0,
+           testday = "1234",
+           testfreq = 4)
+}))
+```
+
+```{r sum_sims_selfiso, include=TRUE, echo = FALSE, message = FALSE}
+sims_sum_selfiso <- bind_rows(
+  no_test_sims_a0_selfiso,
+  test_r1_pcr_sims_a0_selfiso,
+  test_r1_ant_sims_a0_selfiso,
+  test_day1_pcr_sims_a0_selfiso,
+  test_day1_ant_sims_a0_selfiso,
+  test_r2_pcr_sims_a0_selfiso,
+  test_r2_ant_sims_a0_selfiso,
+  test_day13_pcr_sims_a0_selfiso,
+  test_day13_ant_sims_a0_selfiso,
+  test_day1234_pcr_sims_a0_selfiso,
+  test_day1234_ant_sims_a0_selfiso
+) %>% 
+  group_by(sim, delay, testday, testfreq) %>% 
+  summarise(tot_cases = sum(exp_cases),
+            tot_tests = sum(tests_adm),
+            scenario = first(scenario)) %>% 
+  ungroup() %>% 
+  group_by(delay, testday,testfreq, scenario) %>% 
+  summarise(across(.cols = c("tot_cases", "tot_tests"),
+                   .fns  = list("median", "q_025", "q_25", "q_75", "q_975"))) %>% 
+  ungroup()
+
+a0_selfiso_exp_cases_base <- sims_sum %>% 
+  filter(testday == "None") %>% 
+  pull(tot_cases_1)
+
+sims_cases_sum_selfiso <- sims_sum_selfiso %>% 
+  mutate("Expected Cases" = paste0(round(tot_cases_1), " (", 
+                                   round(tot_cases_3), " - ",
+                                   round(tot_cases_5), ")")) %>% 
+  dplyr::select(scenario, delay, testday, testfreq, tot_cases_1, `Expected Cases`)
+
+sims_tests_sum_selfiso <- sims_sum_selfiso %>% 
+  mutate("Tests Conducted" = paste0(round(tot_tests_1), " (", 
+                                    round(tot_tests_3), " - ",
+                                    round(tot_tests_5), ")")) %>% 
+  dplyr::select(scenario, tot_tests_1, `Tests Conducted`)
+
+sims_all_sum_selfiso <- sims_cases_sum_selfiso %>% 
+  left_join(sims_tests_sum_selfiso, by = "scenario") %>% 
+  mutate("Avoided/1000 Tests" = round((a0_selfiso_exp_cases_base-tot_cases_1) / tot_tests_1 * 1000, 2))
+
+sims_all_sum_selfiso %>% 
+  arrange(-tot_cases_1) %>% 
+  dplyr::select(-c(tot_cases_1, tot_tests_1)) %>% 
+  knitr::kable(caption = "Expected cases imported into facility with self-isolation upon symptom onset and $p_{symp}=0.6$ across different testing scenarios indicated by test frequency, $f$, test delay, $d$, and systematic vs random testing day.")
+
+```
+
+### PCR test turnaround time and antigen test sensitivity  
+```{r tat_sens_grid, include = TRUE, cache = T}
+tat_sens_grid <- expand.grid(delay = c(0,c(1:3)/dt-1),
+                             test_sens = c(0, 0.025, 0.05, 0.1))
+
+tat_sens_grid <- as.data.frame(tat_sens_grid) %>% 
+  slice(rep(1:n(), each = n_sims))
+
+# pcr testing on first day of work week
+test_day1_tat_sens_comp <- apply(tat_sens_grid, 1, function(x){
+  cases_tests <- sim_work_transmission(Lambda = 0.01*dt,
+                        alpha   = 0,
+                        R       = 1,
+                        delay   = x[1],
+                        test_sens = x[2],
+                        workers = workers_testday1,
+                        sim_t   = sim_t,
+                        dt      = dt,
+                        verbose = F)$cases_tests
+  
+  return(c("tot_cases" = sum(cases_tests$exp_cases),
+           "tot_tests" = sum(cases_tests$tests_adm)))
+})
+
+tat_sens_res <- cbind(tat_sens_grid, t(test_day1_tat_sens_comp)) %>% 
+  group_by(delay, test_sens) %>% 
+  summarise(across(.cols = c("tot_cases", "tot_tests"),
+                   .fns  = list("median", "q_025", "q_25", "q_75", "q_975"))) %>% 
+  ungroup()
+
+tat_sens_res %>% 
+  ggplot(aes(x = as.factor(test_sens), y = as.factor(delay), fill = tot_cases_1)) +
+    geom_tile() +
+    theme_bw() +
+    #scale_y_continuous(labels = c("0", "1", "2", "3")) +
+    scale_fill_viridis_b() +
+    labs(x = "Test Sensitivity",
+         y = "Test Delay",
+         fill = "Expected\nCases")
+```
+
+Clear that test sensitivity is secondary to test delay in terms of reducing case importations. This makes sense from the infectiousness profile perspective as well if we think of test sensitivity as delaying the time until a case is identified. Since infectiousness rises quickly in the beginning, there's a short window in which low sensitivity tests will not detect a case, and this window is shorter than even a minor turnaround time between test and result that may be expected with a pcr test.
+
+### $\alpha\neq 0$ scenarios  
+```{r run_sims_alpha1, echo = FALSE, cache = TRUE}
+# No testing  
+no_test_sims_a1 <- bind_rows(lapply(1:n_sims, function(x){
+  sim_work_transmission(Lambda    = 0.01*dt,
+                        alpha     = 1,
+                        R         = 1,
+                        delay     = 0,
+                        test_sens = 0,
+                        workers   = workers,
+                        sim_t     = sim_t,
+                        dt        = dt,
+                        verbose   = F)$cases_tests %>% 
+    mutate(sim = x,
+           scenario = "S1",
+           alpha = 0,
+           delay = 0,
+           testday = "None",
+           testfreq = 0)
+}))
+
+# Random pcr testing once per week
+test_r1_pcr_sims_a1 <- bind_rows(lapply(1:n_sims, function(x){
+  sim_work_transmission(Lambda = 0.01*dt,
+                        alpha   = 1,
+                        R       = 1,
+                        delay   = 2/dt-1,
+                        test_sens = 0,
+                        workers = workers_testday_r1,
+                        sim_t   = sim_t,
+                        dt      = dt,
+                        verbose = F)$cases_tests %>% 
+    mutate(sim = x,
+           scenario = "S2",
+           alpha = 0,
+           delay = 2,
+           testday = "rand",
+           testfreq = 1)
+}))
+
+
+# Random antigen testing once per week
+test_r1_ant_sims_a1 <- bind_rows(lapply(1:n_sims, function(x){
+  sim_work_transmission(Lambda = 0.01*dt,
+                        alpha   = 1,
+                        R       = 1,
+                        delay   = 0,
+                        test_sens = 0,
+                        workers = workers_testday_r1,
+                        sim_t   = sim_t,
+                        dt      = dt,
+                        verbose = F)$cases_tests %>% 
+    mutate(sim = x,
+           scenario = "S3",
+           alpha = 0,
+           delay = 0,
+           testday = "rand",
+           testfreq = 1)
+}))
+
+# pcr testing on first day of work week
+test_day1_pcr_sims_a1 <- bind_rows(lapply(1:n_sims, function(x){
+  sim_work_transmission(Lambda = 0.01*dt,
+                        alpha   = 1,
+                        R       = 1,
+                        delay   = 2/dt-1,
+                        test_sens = 0,
+                        workers = workers_testday1,
+                        sim_t   = sim_t,
+                        dt      = dt,
+                        verbose = F)$cases_tests %>% 
+    mutate(sim = x,
+           scenario = "S4",
+           alpha = 0,
+           delay = 2,
+           testday = "1",
+           testfreq = 1)
+}))
+
+
+# antigen testing on first day of work week
+test_day1_ant_sims_a1 <- bind_rows(lapply(1:n_sims, function(x){
+  sim_work_transmission(Lambda = 0.01*dt,
+                        alpha   = 1,
+                        R       = 1,
+                        delay   = 0,
+                        test_sens = 0,
+                        workers = workers_testday1,
+                        sim_t   = sim_t,
+                        dt      = dt,
+                        verbose = F)$cases_tests %>% 
+    mutate(sim = x,
+           scenario = "S5",
+           alpha = 0,
+           delay = 0,
+           testday = "1",
+           testfreq = 1)
+}))
+
+
+# Random pcr testing twice per week
+test_r2_pcr_sims_a1 <- bind_rows(lapply(1:n_sims, function(x){
+  sim_work_transmission(Lambda = 0.01*dt,
+                        alpha   = 1,
+                        R       = 1,
+                        delay   = 2/dt-1,
+                        test_sens = 0,
+                        workers = workers_testday_r2,
+                        sim_t   = sim_t,
+                        dt      = dt,
+                        verbose = F)$cases_tests %>% 
+    mutate(sim = x,
+           scenario = "S6",
+           alpha = 0,
+           delay = 2,
+           testday = "rand",
+           testfreq = 2)
+}))
+
+
+# Random antigen testing twice per week
+test_r2_ant_sims_a1 <- bind_rows(lapply(1:n_sims, function(x){
+  sim_work_transmission(Lambda = 0.01*dt,
+                        alpha   = 1,
+                        R       = 1,
+                        delay   = 0,
+                        test_sens = 0,
+                        workers = workers_testday_r2,
+                        sim_t   = sim_t,
+                        dt      = dt,
+                        verbose = F)$cases_tests %>% 
+    mutate(sim = x,
+           scenario = "S7",
+           alpha = 0,
+           delay = 0,
+           testday = "rand",
+           testfreq = 2)
+}))
+
+
+# pcr testing on first and third day of work week
+test_day13_pcr_sims_a1 <- bind_rows(lapply(1:n_sims, function(x){
+  sim_work_transmission(Lambda = 0.01*dt,
+                        alpha   = 1,
+                        R       = 1,
+                        delay   = 2/dt-1,
+                        test_sens = 0,
+                        workers = workers_testday13,
+                        sim_t   = sim_t,
+                        dt      = dt,
+                        verbose = F)$cases_tests %>% 
+    mutate(sim = x,
+           scenario = "S8",
+           alpha = 0,
+           delay = 2,
+           testday = "13",
+           testfreq = 2)
+}))
+
+
+# antigen testing on first and third day of work week
+test_day13_ant_sims_a1 <- bind_rows(lapply(1:n_sims, function(x){
+  sim_work_transmission(Lambda = 0.01*dt,
+                        alpha   = 1,
+                        R       = 1,
+                        delay   = 0,
+                        test_sens = 0,
+                        workers = workers_testday13,
+                        sim_t   = sim_t,
+                        dt      = dt,
+                        verbose = F)$cases_tests %>% 
+    mutate(sim = x,
+           scenario = "S9",
+           alpha = 0,
+           delay = 0,
+           testday = "13",
+           testfreq = 2)
+}))
+
+# pcr testing on first and third day of work week
+test_day1234_pcr_sims_a1 <- bind_rows(lapply(1:n_sims, function(x){
+  sim_work_transmission(Lambda = 0.01*dt,
+                        alpha   = 1,
+                        R       = 1,
+                        delay   = 2/dt-1,
+                        test_sens = 0,
+                        workers = workers_testday1234,
+                        sim_t   = sim_t,
+                        dt      = dt,
+                        verbose = F)$cases_tests %>% 
+    mutate(sim = x,
+           scenario = "S10",
+           alpha = 0,
+           delay = 2,
+           testday = "1234",
+           testfreq = 4)
+}))
+
+
+# antigen testing on first and third day of work week
+test_day1234_ant_sims_a1 <- bind_rows(lapply(1:n_sims, function(x){
+  sim_work_transmission(Lambda = 0.01*dt,
+                        alpha   = 1,
+                        R       = 1,
+                        delay   = 0,
+                        test_sens = 0,
+                        workers = workers_testday1234,
+                        sim_t   = sim_t,
+                        dt      = dt,
+                        verbose = F)$cases_tests %>% 
+    mutate(sim = x,
+           scenario = "S11",
+           alpha = 0,
+           delay = 0,
+           testday = "1234",
+           testfreq = 4)
+}))
+```
+
+```{r sum_sims_a1, include=TRUE, echo = FALSE, message = FALSE}
+sims_sum_a1 <- bind_rows(
+  no_test_sims_a1,
+  test_r1_pcr_sims_a1,
+  test_r1_ant_sims_a1,
+  test_day1_pcr_sims_a1,
+  test_day1_ant_sims_a1,
+  test_r2_pcr_sims_a1,
+  test_r2_ant_sims_a1,
+  test_day13_pcr_sims_a1,
+  test_day13_ant_sims_a1,
+  test_day1234_pcr_sims_a1,
+  test_day1234_ant_sims_a1
+) %>% 
+  group_by(sim, delay, testday, testfreq) %>% 
+  summarise(tot_cases = sum(exp_cases),
+            tot_tests = sum(tests_adm),
+            scenario = first(scenario)) %>% 
+  ungroup() %>% 
+  group_by(delay, testday,testfreq, scenario) %>% 
+  summarise(across(.cols = c("tot_cases", "tot_tests"),
+                   .fns  = list("median", "q_025", "q_25", "q_75", "q_975"))) %>% 
+  ungroup()
+
+a1_exp_cases_base <- sims_sum %>% 
+  filter(testday == "None") %>% 
+  pull(tot_cases_1)
+
+
+sims_cases_sum_a1 <- sims_sum_a1 %>% 
+  mutate("Expected Cases" = paste0(round(tot_cases_1), " (", 
+                                   round(tot_cases_3), " - ",
+                                   round(tot_cases_5), ")")) %>% 
+  dplyr::select(scenario, delay, testday, testfreq, tot_cases_1, `Expected Cases`)
+
+sims_tests_sum_a1 <- sims_sum_a1 %>% 
+  mutate("Tests Conducted" = paste0(round(tot_tests_1), " (", 
+                                    round(tot_tests_3), " - ",
+                                    round(tot_tests_5), ")")) %>% 
+  dplyr::select(scenario, tot_tests_1, `Tests Conducted`)
+
+sims_all_sum_a1 <- sims_cases_sum_a1 %>% 
+  left_join(sims_tests_sum_a1, by = "scenario") %>% 
+  mutate("Avoided/1000 Tests" = round((a1_exp_cases_base-tot_cases_1) / tot_tests_1 * 1000, 2))
+
+sims_all_sum_a1 %>% 
+  arrange(-tot_cases_1) %>% 
+  dplyr::select(-c(tot_cases_1, tot_tests_1)) %>% 
+  knitr::kable(caption = "Expected cases imported into facility with equivalent community and workplace transmission across different testing scenarios indicated by test frequency, $f$, test delay, $d$, and systematic vs random testing day.")
+
+```
+
+Results hold when adding in workplace transmission: systematic testing on the first day results in most cases avoided per test conducted.  
+
+## Thoughts/Reflections/Next steps  
+I think the systematic (vs random) testing results are interesting enough to form a message/paper around. I think framing the results around optimal testing strategies for leaky/inconsistent/overlapping cohorts might help make them a bit more generalizable. The one additional analysis I would consider is using the CDCR staff work and test schedules directly to see a) how close they are to the optimal strategy identified here (testing on first day of work schedule), b) how inconsistencies in the work schedule like overtime shifts affect expected number of cases, and/or c) try and estimate some sort of counterfactual cases avoided had testing occurred optimally vs how it was actually implemented  

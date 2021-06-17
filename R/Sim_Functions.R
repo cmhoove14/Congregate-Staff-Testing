@@ -7,10 +7,227 @@ sim_inf_pars <- function(n){
   return(cbind(t_inc, t_lnt, t_inf))
 }
 
+# Generate workers with systematic test schedules
+generate_workers <- function(n_workers, sim_t, schedule_days, schedule_shifts, testdays, biweekly = FALSE){
+  lapply(1:n_workers, function(s){
+    # Worker state and infectious profile parameters for if/when they become infected  
+    state <- character(sim_t+1)
+    state[1] <- "S"
+    
+    
+    inf_pars <- sim_inf_pars(1)
+    t_inc <- inf_pars[1]
+    t_lnt <- inf_pars[2]
+    t_inf <- inf_pars[3]
+    
+    # Worker schedule  
+    # Randomly determine if worker works morning, night or day shift with equal probability  
+    draw_shift <- runif(1,0,1)
+    work_shift <- if_else(draw_shift < 1/3, "M",
+                          if_else(draw_shift > 2/3, "N", "E"))
+    
+    # Randomly determine weekly schedule from four options: 1)Sat-Wed, 2)Tues-Sun,3)Thurs-Mon, 4)Mon-Fri with eaual probability
+    draw_days <- runif(1,0,1)
+    work_days <- if_else(draw_days < 1/4, "SUMTW",
+                         if_else(draw_days > 3/4, "MTWRF", 
+                                 if_else(draw_days > 1/4 & draw_days < 2/4, "TWRFS", "RFSUM")))
+    
+    # Binary work schedule
+    shift10 <- if_else(work_shift == schedule_shifts, 1, 0)
+    work10  <- if_else(schedule_days %in% unlist(strsplit(work_days, "")), 1, 0)
+    
+    schedule_fin <- if_else(shift10 + work10 == 2, 1, 0)
+    
+    # Binary test schedule
+    days_tested <- sapply(testdays, function(d){
+      substr(work_days,d,d)
+    })
+    
+    test_schedule <- rep(0, length(schedule_days))
+    test_schedule[which(schedule_days %in% days_tested & schedule_shifts %in% work_shift)] <- 1
+    
+    # Adjust if only doing biweekly testing by removing every other test
+    if(biweekly){
+      testdays_num  <- which(test_schedule == 1)   
+      biweek_remove <- testdays_num[seq(2, length(testdays_num), 2)]
+      test_schedule[biweek_remove] <- 0
+    }
+    
+    # Return worker characteristics in list  
+    worker                <- list()
+    worker$state          <- state
+    worker$t_latent       <- t_lnt
+    worker$t_incubation   <- t_inc
+    worker$t_infectious   <- t_inf
+    worker$infectiousness <- numeric()
+    worker$t_infect       <- -Inf
+    worker$delay          <- 0
+    worker$work_schedule  <- schedule_fin
+    worker$test_schedule  <- test_schedule
+    
+    return(worker)
+    
+  })
+}
+
+# Generate workers with random test schedules
+generate_workers_random <- function(n_workers, sim_t, schedule_days, schedule_shifts, master_schedule, n_tests_per_week, biweekly = FALSE){
+  
+  work_weeks <- ceiling(length(schedule_shifts)/length(unique(schedule_shifts))/7)
+  
+  lapply(1:n_workers, function(s){
+    # Worker state and infectious profile parameters for if/when they become infected  
+    state <- character(sim_t+1)
+    state[1] <- "S"
+    
+    
+    inf_pars <- sim_inf_pars(1)
+    t_inc <- inf_pars[1]
+    t_lnt <- inf_pars[2]
+    t_inf <- inf_pars[3]
+    
+    # Worker schedule  
+    # Randomly determine if worker works morning, night or day shift with equal probability  
+    draw_shift <- runif(1,0,1)
+    work_shift <- if_else(draw_shift < 1/3, "M",
+                          if_else(draw_shift > 2/3, "N", "E"))
+    
+    # Randomly determine weekly schedule from four options: 1)Sat-Wed, 2)Tues-Sun,3)Thurs-Mon, 4)Mon-Fri with eaual probability
+    draw_days <- runif(1,0,1)
+    work_days <- if_else(draw_days < 1/4, "SUMTW",
+                         if_else(draw_days > 3/4, "MTWRF", 
+                                 if_else(draw_days > 1/4 & draw_days < 2/4, "TWRFS", "RFSUM")))
+    
+    # Binary work schedule
+    shift10 <- if_else(work_shift == schedule_shifts, 1, 0)
+    work10  <- if_else(schedule_days %in% unlist(strsplit(work_days, "")), 1, 0)
+    
+    schedule_fin <- if_else(shift10 + work10 == 2, 1, 0)
+    
+    # Binary test schedule with random days each work week
+    work_days_string <- sapply(1:nchar(work_days), function(x){substr(work_days,x,x)})
+    
+    test_days <- unlist(lapply(1:work_weeks, function(x){sample(work_days_string, n_tests_per_week, replace = F)}))
+    test_days_schedule <- paste(test_days, work_shift, rep(c(1:work_weeks), each = n_tests_per_week), sep = "_")
+    
+    test_schedule <- if_else(master_schedule %in% test_days_schedule, 1, 0)
+    
+    # Adjust if only doing biweekly testing by removing every other test
+    if(biweekly){
+      testdays_num  <- which(test_schedule == 1)   
+      biweek_remove <- testdays_num[seq(2, length(testdays_num), 2)]
+      test_schedule[biweek_remove] <- 0
+    }
+    
+    # Return worker characteristics in list  
+    worker                <- list()
+    worker$state          <- state
+    worker$t_latent       <- t_lnt
+    worker$t_incubation   <- t_inc
+    worker$t_infectious   <- t_inf
+    worker$infectiousness <- numeric()
+    worker$t_infect       <- -Inf
+    worker$delay          <- 0
+    worker$work_schedule  <- schedule_fin
+    worker$test_schedule  <- test_schedule
+    
+    return(worker)
+    
+  })
+}
+
+# Generate workers with systematic test schedule, one random work shift per week
+generate_workers_leaky <- function(n_workers, sim_t, schedule_days, schedule_shifts, testdays, biweekly = FALSE){
+  
+  work_weeks <- ceiling(length(schedule_shifts)/length(unique(schedule_shifts))/7)
+  
+  lapply(1:n_workers, function(s){
+    # Worker state and infectious profile parameters for if/when they become infected  
+    state <- character(sim_t+1)
+    state[1] <- "S"
+    
+    
+    inf_pars <- sim_inf_pars(1)
+    t_inc <- inf_pars[1]
+    t_lnt <- inf_pars[2]
+    t_inf <- inf_pars[3]
+    
+    # Worker schedule  
+    # Randomly determine if worker works morning, night or day shift with equal probability  
+    draw_shift <- runif(1,0,1)
+    work_shift <- if_else(draw_shift < 1/3, "M",
+                          if_else(draw_shift > 2/3, "N", "E"))
+    
+    # Randomly determine core weekly schedule from four options
+    draw_days <- runif(1,0,1)
+    work_days <- if_else(draw_days < 1/4, "SUMT",
+                         if_else(draw_days > 3/4, "MTWR", 
+                                 if_else(draw_days > 1/4 & draw_days < 2/4, "TWRF", "RFSU")))
+    # Binary work schedule
+    work_days_string <- sapply(1:nchar(work_days), function(x){substr(work_days,x,x)})
+    
+    work_days_schedule <- paste(work_days_string, work_shift, rep(c(1:work_weeks), each = nchar(work_days)), sep = "_")
+    
+    # Add in random shift
+    rand_days   <- sample(c("U", "M", "T", "W", "R", "F", "S"), work_weeks, replace = T)
+    rand_shifts <- sample(c("M", "N", "E"), work_weeks, replace = T)
+    
+    rand_days_schedule <- paste(rand_days, rand_shifts, c(1:work_weeks), sep = "_")
+      
+    # Enforce same number of work days each week by resampling for weeks where random shift scheduled is already a work shift
+    while(sum(rand_days_schedule %in% work_days_schedule)){
+      overlap_shifts <- rand_days_schedule[rand_days_schedule %in% work_days_schedule]
+      
+      redo_weeks <- sapply(overlap_shifts, function(i) as.numeric(substr(i, 5, 6)))
+      
+      redo_rand_days   <- sample(c("U", "M", "T", "W", "R", "F", "S"), length(redo_weeks), replace = T)
+      redo_rand_shifts <- sample(c("M", "N", "E"), length(redo_weeks), replace = T)
+      
+      redo_shifts <- paste(redo_rand_days, redo_rand_shifts, redo_weeks, sep = "_")
+      
+      rand_days_schedule[which(rand_days_schedule %in% work_days_schedule)] <- redo_shifts
+
+    }
+    
+    schedule_fin <- if_else(master_schedule %in% c(work_days_schedule, rand_days_schedule), 1, 0)
+    
+    # Binary test schedule
+    days_tested <- sapply(testdays, function(d){
+      substr(work_days,d,d)
+    })
+    
+    test_schedule <- rep(0, length(schedule_days))
+    test_schedule[which(schedule_days %in% days_tested & schedule_shifts %in% work_shift)] <- 1
+    
+    # Adjust if only doing biweekly testing by removing every other test
+    if(biweekly){
+      testdays_num  <- which(test_schedule == 1)   
+      biweek_remove <- testdays_num[seq(2, length(testdays_num), 2)]
+      test_schedule[biweek_remove] <- 0
+    }
+    
+    # Return worker characteristics in list  
+    worker                <- list()
+    worker$state          <- state
+    worker$t_latent       <- t_lnt
+    worker$t_incubation   <- t_inc
+    worker$t_infectious   <- t_inf
+    worker$infectiousness <- numeric()
+    worker$t_infect       <- -Inf
+    worker$delay          <- 0
+    worker$work_schedule  <- schedule_fin
+    worker$test_schedule  <- test_schedule
+    
+    return(worker)
+    
+  })
+}
+
 
 # Simulate transmission given parameters, time characteristics, and workers
-sim_work_transmission <- function(Lambda, alpha, R, delay, test_sens, workers, sim_t, dt, verbose = FALSE){
+sim_work_transmission <- function(Lambda, R_work, R, delay, test_sens, workers, sim_t, dt, verbose = FALSE){
   
+  inf_days  <- numeric(sim_t)
   exp_cases <- numeric(sim_t)
   tests_adm <- numeric(sim_t)
   
@@ -36,8 +253,7 @@ sim_work_transmission <- function(Lambda, alpha, R, delay, test_sens, workers, s
     }
     
     # Testing and isolation  -----------
-    tested <- which(unlist(lapply(workers, function(w) w$test_schedule[t])) == 1 & 
-                    states != "Q") 
+    tested <- which(unlist(lapply(workers, function(w) w$test_schedule[t])) == 1) 
     tests_adm[t] <- length(tested)
     
     if(verbose){
@@ -57,6 +273,8 @@ sim_work_transmission <- function(Lambda, alpha, R, delay, test_sens, workers, s
           # If no delay, instantly quarantine
           if(delay <= 0 & workers[[i]]$state[t] == "T"){
             workers[[i]]$state[t] <- "Q"
+            # Workers who are isolated after testing positive not tested again for 90 days per guidance
+            workers[[i]]$test_schedule[t:min(c(t+90*(1/dt), sim_t))] <- 0 
           }
         }
       }
@@ -67,16 +285,22 @@ sim_work_transmission <- function(Lambda, alpha, R, delay, test_sens, workers, s
       workers[[i]]$delay <- workers[[i]]$delay - 1
       if(workers[[i]]$delay <= 0){
         workers[[i]]$state[t] <- "Q"
+        # Workers who are isolated after testing positive not tested for 90 days per guidance
+        workers[[i]]$test_schedule[t:max(c(t+90*(1/dt), sim_t))] <- 0 
       }
     }
     
     # New infections ------------
-    # Determine who's working
+    # Determine who's working and infectious
     working <- which(unlist(lapply(workers, function(w) w$work_schedule[t])) == 1)
+    infectors_t  <- which(states %in% c("I", "T")) # Workers infectious or waiting on test will transmit
+    inf_work_t   <- unlist(lapply(infectors_t, function(i) workers[[i]]$work_schedule[t]))
+    infectious_t <- unlist(lapply(infectors_t, function(i) workers[[i]]$infectiousness[workers[[i]]$t_infect]))
     
     # FOIs
-    Lambda_it          <- rep(Lambda*dt, length(workers)) # Community infectivity
-    Lambda_it[working] <- Lambda*dt*alpha                 # Workplace infectivity for those working
+    Lambda_it          <- rep(Lambda*dt, length(workers))                     # Community infectivity
+    Lambda_it[working] <- sum(inf_work_t*infectious_t*R_work)/length(working) # Workplace infectivity for those working. 
+    # beta*I/N except beta*I is weighted by infectiousness and determined by workplace transmission, R_work
     
     # Bernoulli trials determine who is exposed, become infected if exposed and susceptible
     bernoullis <- rbinom(length(workers),1,Lambda_it)
@@ -118,6 +342,143 @@ sim_work_transmission <- function(Lambda, alpha, R, delay, test_sens, workers, s
     }
     
     exp_cases[t] <- sum(inf_work_t*infectious_t*R)
+    inf_days[t]  <- sum(inf_work_t*infectious_t*R > 1)
+  }
+  
+  out_cases_tests <- tibble("exp_cases" = exp_cases,
+                            "inf_days"  = inf_days,
+                            "tests_adm" = tests_adm,
+                            "time"      = 1:sim_t)
+  
+  out_list <- list()
+  out_list$workers   <- workers
+  out_list$cases_tests <- out_cases_tests
+
+  return(out_list)
+} 
+
+# Simulate transmission given parameters, time characteristics, and workers
+sim_work_transmission_selfiso <- function(Lambda, alpha, R, delay, test_sens, workers, sim_t, dt, p_symp, verbose = FALSE){
+  
+  exp_cases <- numeric(sim_t)
+  tests_adm <- numeric(sim_t)
+  
+  for(t in 2:sim_t){
+    cat(t,"\n")
+    # Advance infections ----------
+    states       <- unlist(lapply(workers, function(w) w$state[t-1]))
+    infecteds    <- which(states %in% c("E", "I", "T", "Q"))
+    
+    for(i in infecteds){
+      # Advance time infected
+      workers[[i]]$t_infect <- workers[[i]]$t_infect+1
+      
+      # Worker becomes infectious if past latent period and not yet tested/quarantined
+      if(workers[[i]]$t_infect*dt > workers[[i]]$t_latent & 
+         workers[[i]]$state[t-1] %in% c("E", "I")){
+        workers[[i]]$state[t] <- "I"
+      }
+      
+      # Worker is recovered if past end of infectious period
+      if(workers[[i]]$t_infect > length(workers[[i]]$infectiousness)){
+        workers[[i]]$state[t] <- "R"
+      }
+    }
+    
+    # Testing and isolation  -----------
+    tested <- which(unlist(lapply(workers, function(w) w$test_schedule[t])) == 1 & 
+                      states != "Q") 
+    tests_adm[t] <- length(tested)
+    
+    if(verbose){
+      cat(tests_adm[t], "tests administered\n")
+    }
+    
+    
+    # Testing conducted. If worker infectious above test sens level, flagged as tested and sets clock for delay until test result returned and quarantine
+    for(i in tested){
+      # If worker actively infectious
+      if(workers[[i]]$state[t-1] == "I" &
+         workers[[i]]$state[t] != "R"){
+        # If worker's infectiousness is greater than test sensitivity
+        if(workers[[i]]$infectiousness[workers[[i]]$t_infect] > test_sens){
+          workers[[i]]$state[t] <- "T"
+          workers[[i]]$delay <- delay
+          # If no delay, instantly quarantine
+          if(delay <= 0 & workers[[i]]$state[t] == "T"){
+            workers[[i]]$state[t] <- "Q"
+          }
+        }
+      }
+    }
+    
+    # Test delay and quarantine on notification of positive if delay > 0
+    for(i in which(states == "T")){
+      workers[[i]]$delay <- workers[[i]]$delay - 1
+      if(workers[[i]]$delay <= 0){
+        workers[[i]]$state[t] <- "Q"
+      }
+    }
+    
+    # Self-isolation
+    symptomatic <- infecteds[which(sapply(infecteds, function(w) workers[[w]]$symp) == 1)] 
+    
+    for(i in symptomatic){
+      # Isolate if time since infection is at or past peak infectiousness: assumes symptom onset coincides with peak infectiousness
+      if(workers[[i]]$t_infect >= which.max(workers[[i]]$infectiousness)){
+        workers[[i]]$state[t] <- "Q"
+      }
+    }
+    
+    # New infections ------------
+    # Determine who's working
+    working <- which(unlist(lapply(workers, function(w) w$work_schedule[t])) == 1)
+    
+    # FOIs
+    Lambda_it          <- rep(Lambda*dt, length(workers)) # Community infectivity
+    Lambda_it[working] <- Lambda*dt*alpha                 # Workplace infectivity for those working
+    
+    # Bernoulli trials determine who is exposed, become infected if exposed and susceptible
+    bernoullis <- rbinom(length(workers),1,Lambda_it)
+    
+    new_Is <- which(bernoullis == 1 & states == "S")
+    
+    # Assign characteristics for newly exposed
+    if(length(new_Is) > 0){
+      for(i in new_Is){
+        workers[[i]]$state[t] <- "E"
+        workers[[i]]$t_infect <- 0
+        workers[[i]]$infectiousness <- infectious_profile(t_latent     = workers[[i]]$t_latent, 
+                                                          t_peak       = workers[[i]]$t_incubation, 
+                                                          t_infectious = workers[[i]]$t_infectious, 
+                                                          dt           = dt)
+        workers[[i]]$symp <- rbinom(1,1,p_symp)
+      }
+    }
+    
+    # Finalize advancement of states
+    states_advanced <- unlist(lapply(workers, function(w) w$state[t]))
+    unchanged <- which(states_advanced == "")
+    for(i in unchanged){
+      workers[[i]]$state[t] <- workers[[i]]$state[t-1]
+    }
+    
+    
+    # Infectious work days -------
+    infectors_t  <- which(states_advanced %in% c("I", "T")) # Workers infectious or waiting on test will transmit
+    inf_work_t   <- unlist(lapply(infectors_t, function(i) workers[[i]]$work_schedule[t]))
+    infectious_t <- unlist(lapply(infectors_t, function(i) workers[[i]]$infectiousness[workers[[i]]$t_infect]))
+    
+    if(verbose){
+      cat("S -", sum(states_advanced=="S"), "  ",
+          "E -", sum(states_advanced=="E"), "  ",
+          "I -", sum(states_advanced=="I"), "  ",
+          "T -", sum(states_advanced=="T"), "  ",
+          "Q -", sum(states_advanced=="Q"), "  ",
+          "R -", sum(states_advanced=="R"), "\n")
+    }
+    
+    exp_cases[t] <- sum(inf_work_t*infectious_t*R)
   }
   
   out_cases_tests <- tibble("exp_cases" = exp_cases,
@@ -127,6 +488,6 @@ sim_work_transmission <- function(Lambda, alpha, R, delay, test_sens, workers, s
   out_list <- list()
   out_list$workers   <- workers
   out_list$cases_tests <- out_cases_tests
-
+  
   return(out_list)
 } 
