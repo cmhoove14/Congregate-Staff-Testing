@@ -8,7 +8,7 @@ sim_inf_pars <- function(n){
 }
 
 # Generate workers with systematic test schedules
-generate_workers <- function(n_workers, sim_t, schedule_days, schedule_shifts, testdays, biweekly = FALSE){
+generate_workers <- function(n_workers, sim_t, schedule_days, schedule_shifts, testdays, test_freq){
   lapply(1:n_workers, function(s){
     # Worker state and infectious profile parameters for if/when they become infected  
     state <- character(sim_t+1)
@@ -39,84 +39,21 @@ generate_workers <- function(n_workers, sim_t, schedule_days, schedule_shifts, t
     schedule_fin <- if_else(shift10 + work10 == 2, 1, 0)
     
     # Binary test schedule
-    days_tested <- sapply(testdays, function(d){
-      substr(work_days,d,d)
-    })
-    
     test_schedule <- rep(0, length(schedule_days))
-    test_schedule[which(schedule_days %in% days_tested & schedule_shifts %in% work_shift)] <- 1
     
-    # Adjust if only doing biweekly testing by removing every other test
-    if(biweekly){
-      testdays_num  <- which(test_schedule == 1)   
-      biweek_remove <- testdays_num[seq(2, length(testdays_num), 2)]
-      test_schedule[biweek_remove] <- 0
-    }
-    
-    # Return worker characteristics in list  
-    worker                <- list()
-    worker$state          <- state
-    worker$t_latent       <- t_lnt
-    worker$t_incubation   <- t_inc
-    worker$t_infectious   <- t_inf
-    worker$infectiousness <- numeric()
-    worker$t_infect       <- -Inf
-    worker$delay          <- 0
-    worker$work_schedule  <- schedule_fin
-    worker$test_schedule  <- test_schedule
-    
-    return(worker)
-    
-  })
-}
-
-# Generate workers with random test schedules
-generate_workers_random <- function(n_workers, sim_t, schedule_days, schedule_shifts, master_schedule, n_tests_per_week, biweekly = FALSE){
-  
-  work_weeks <- ceiling(length(schedule_shifts)/length(unique(schedule_shifts))/7)
-  
-  lapply(1:n_workers, function(s){
-    # Worker state and infectious profile parameters for if/when they become infected  
-    state <- character(sim_t+1)
-    state[1] <- "S"
-    
-    
-    inf_pars <- sim_inf_pars(1)
-    t_inc <- inf_pars[1]
-    t_lnt <- inf_pars[2]
-    t_inf <- inf_pars[3]
-    
-    # Worker schedule  
-    # Randomly determine if worker works morning, night or day shift with equal probability  
-    draw_shift <- runif(1,0,1)
-    work_shift <- if_else(draw_shift < 1/3, "M",
-                          if_else(draw_shift > 2/3, "N", "E"))
-    
-    # Randomly determine weekly schedule from four options: 1)Sat-Wed, 2)Tues-Sun,3)Thurs-Mon, 4)Mon-Fri with eaual probability
-    draw_days <- runif(1,0,1)
-    work_days <- if_else(draw_days < 1/4, "SUMTW",
-                         if_else(draw_days > 3/4, "MTWRF", 
-                                 if_else(draw_days > 1/4 & draw_days < 2/4, "TWRFS", "RFSUM")))
-    
-    # Binary work schedule
-    shift10 <- if_else(work_shift == schedule_shifts, 1, 0)
-    work10  <- if_else(schedule_days %in% unlist(strsplit(work_days, "")), 1, 0)
-    
-    schedule_fin <- if_else(shift10 + work10 == 2, 1, 0)
-    
-    # Binary test schedule with random days each work week
-    work_days_string <- sapply(1:nchar(work_days), function(x){substr(work_days,x,x)})
-    
-    test_days <- unlist(lapply(1:work_weeks, function(x){sample(work_days_string, n_tests_per_week, replace = F)}))
-    test_days_schedule <- paste(test_days, work_shift, rep(c(1:work_weeks), each = n_tests_per_week), sep = "_")
-    
-    test_schedule <- if_else(master_schedule %in% test_days_schedule, 1, 0)
-    
-    # Adjust if only doing biweekly testing by removing every other test
-    if(biweekly){
-      testdays_num  <- which(test_schedule == 1)   
-      biweek_remove <- testdays_num[seq(2, length(testdays_num), 2)]
-      test_schedule[biweek_remove] <- 0
+    if(test_freq > 0){
+      days_tested <- sapply(testdays, function(d){
+        substr(work_days,d,d)
+      })
+      
+      test_schedule[which(schedule_days %in% days_tested & schedule_shifts %in% work_shift)] <- 1
+      
+      # Adjust if testing less than once per week by removing tests
+      if(test_freq < 1){
+        testdays_num  <- which(test_schedule == 1)   
+        subweek_remove <- testdays_num[seq(1/test_freq, length(testdays_num), 1/test_freq)]
+        test_schedule[subweek_remove] <- 0
+      }
     }
     
     # Return worker characteristics in list  
@@ -137,7 +74,7 @@ generate_workers_random <- function(n_workers, sim_t, schedule_days, schedule_sh
 }
 
 # Generate workers with systematic test schedule, one random work shift per week
-generate_workers_leaky <- function(n_workers, sim_t, schedule_days, schedule_shifts, testdays, biweekly = FALSE){
+generate_workers_leaky <- function(n_workers, sim_t, schedule_days, schedule_shifts, testdays, test_freq){
   
   work_weeks <- ceiling(length(schedule_shifts)/length(unique(schedule_shifts))/7)
   
@@ -173,7 +110,7 @@ generate_workers_leaky <- function(n_workers, sim_t, schedule_days, schedule_shi
     rand_shifts <- sample(c("M", "N", "E"), work_weeks, replace = T)
     
     rand_days_schedule <- paste(rand_days, rand_shifts, c(1:work_weeks), sep = "_")
-      
+    
     # Enforce same number of work days each week by resampling for weeks where random shift scheduled is already a work shift
     while(sum(rand_days_schedule %in% work_days_schedule)){
       overlap_shifts <- rand_days_schedule[rand_days_schedule %in% work_days_schedule]
@@ -186,24 +123,27 @@ generate_workers_leaky <- function(n_workers, sim_t, schedule_days, schedule_shi
       redo_shifts <- paste(redo_rand_days, redo_rand_shifts, redo_weeks, sep = "_")
       
       rand_days_schedule[which(rand_days_schedule %in% work_days_schedule)] <- redo_shifts
-
+      
     }
     
     schedule_fin <- if_else(master_schedule %in% c(work_days_schedule, rand_days_schedule), 1, 0)
     
     # Binary test schedule
-    days_tested <- sapply(testdays, function(d){
-      substr(work_days,d,d)
-    })
-    
     test_schedule <- rep(0, length(schedule_days))
-    test_schedule[which(schedule_days %in% days_tested & schedule_shifts %in% work_shift)] <- 1
     
-    # Adjust if only doing biweekly testing by removing every other test
-    if(biweekly){
-      testdays_num  <- which(test_schedule == 1)   
-      biweek_remove <- testdays_num[seq(2, length(testdays_num), 2)]
-      test_schedule[biweek_remove] <- 0
+    if(test_freq > 0){
+      days_tested <- sapply(testdays, function(d){
+        substr(work_days,d,d)
+      })
+      
+      test_schedule[which(schedule_days %in% days_tested & schedule_shifts %in% work_shift)] <- 1
+      
+      # Adjust if testing less than once per week by removing tests
+      if(test_freq < 1){
+        testdays_num  <- which(test_schedule == 1)   
+        subweek_remove <- testdays_num[seq(1/test_freq, length(testdays_num), 1/test_freq)]
+        test_schedule[subweek_remove] <- 0
+      }
     }
     
     # Return worker characteristics in list  
@@ -223,6 +163,167 @@ generate_workers_leaky <- function(n_workers, sim_t, schedule_days, schedule_shi
   })
 }
 
+# Generate workers with random test schedules
+generate_workers_random <- function(n_workers, sim_t, schedule_days, schedule_shifts, master_schedule, test_freq){
+  
+  work_weeks <- ceiling(length(schedule_shifts)/length(unique(schedule_shifts))/7)
+  
+  lapply(1:n_workers, function(s){
+    # Worker state and infectious profile parameters for if/when they become infected  
+    state <- character(sim_t+1)
+    state[1] <- "S"
+    
+    
+    inf_pars <- sim_inf_pars(1)
+    t_inc <- inf_pars[1]
+    t_lnt <- inf_pars[2]
+    t_inf <- inf_pars[3]
+    
+    # Worker schedule  
+    # Randomly determine if worker works morning, night or day shift with equal probability  
+    draw_shift <- runif(1,0,1)
+    work_shift <- if_else(draw_shift < 1/3, "M",
+                          if_else(draw_shift > 2/3, "N", "E"))
+    
+    # Randomly determine weekly schedule from four options: 1)Sat-Wed, 2)Tues-Sun,3)Thurs-Mon, 4)Mon-Fri with eaual probability
+    draw_days <- runif(1,0,1)
+    work_days <- if_else(draw_days < 1/4, "SUMTW",
+                         if_else(draw_days > 3/4, "MTWRF", 
+                                 if_else(draw_days > 1/4 & draw_days < 2/4, "TWRFS", "RFSUM")))
+    
+    # Binary work schedule
+    shift10 <- if_else(work_shift == schedule_shifts, 1, 0)
+    work10  <- if_else(schedule_days %in% unlist(strsplit(work_days, "")), 1, 0)
+    
+    schedule_fin <- if_else(shift10 + work10 == 2, 1, 0)
+    
+    # Binary test schedule with random days each work week
+    work_days_string <- sapply(1:nchar(work_days), function(x){substr(work_days,x,x)})
+    
+    test_days <- unlist(lapply(1:work_weeks, function(x){sample(work_days_string, 
+                                                                ifelse(test_freq < 1, 1, test_freq), 
+                                                                replace = F)}))
+    
+    test_days_schedule <- paste(test_days, work_shift, rep(c(1:work_weeks), 
+                                                           each = ifelse(test_freq < 1, 1, test_freq)), 
+                                sep = "_")
+    
+    test_schedule <- if_else(master_schedule %in% test_days_schedule, 1, 0)
+    
+    # Adjust if only doing biweekly testing by removing every other test
+    if(test_freq < 1){
+      testdays_num  <- which(test_schedule == 1)   
+      subweek_remove <- testdays_num[seq(1/test_freq, length(testdays_num), 1/test_freq)]
+      test_schedule[subweek_remove] <- 0
+    }
+    
+    # Return worker characteristics in list  
+    worker                <- list()
+    worker$state          <- state
+    worker$t_latent       <- t_lnt
+    worker$t_incubation   <- t_inc
+    worker$t_infectious   <- t_inf
+    worker$infectiousness <- numeric()
+    worker$t_infect       <- -Inf
+    worker$delay          <- 0
+    worker$work_schedule  <- schedule_fin
+    worker$test_schedule  <- test_schedule
+    
+    return(worker)
+    
+  })
+}
+
+# Generate workers with random test schedules, one random work shift per week
+generate_workers_leaky_random <- function(n_workers, sim_t, schedule_days, schedule_shifts, master_schedule, test_freq){
+  
+  work_weeks <- ceiling(length(schedule_shifts)/length(unique(schedule_shifts))/7)
+  
+  lapply(1:n_workers, function(s){
+    # Worker state and infectious profile parameters for if/when they become infected  
+    state <- character(sim_t+1)
+    state[1] <- "S"
+    
+    
+    inf_pars <- sim_inf_pars(1)
+    t_inc <- inf_pars[1]
+    t_lnt <- inf_pars[2]
+    t_inf <- inf_pars[3]
+    
+    # Worker schedule  
+    # Randomly determine if worker works morning, night or day shift with equal probability  
+    draw_shift <- runif(1,0,1)
+    work_shift <- if_else(draw_shift < 1/3, "M",
+                          if_else(draw_shift > 2/3, "N", "E"))
+    
+    # Randomly determine core weekly schedule from four options
+    draw_days <- runif(1,0,1)
+    work_days <- if_else(draw_days < 1/4, "SUMT",
+                         if_else(draw_days > 3/4, "MTWR", 
+                                 if_else(draw_days > 1/4 & draw_days < 2/4, "TWRF", "RFSU")))
+    # Binary work schedule
+    work_days_string <- sapply(1:nchar(work_days), function(x){substr(work_days,x,x)})
+    
+    work_days_schedule <- paste(work_days_string, work_shift, rep(c(1:work_weeks), each = nchar(work_days)), sep = "_")
+    
+    # Add in random shift
+    rand_days   <- sample(c("U", "M", "T", "W", "R", "F", "S"), work_weeks, replace = T)
+    rand_shifts <- sample(c("M", "N", "E"), work_weeks, replace = T)
+    
+    rand_days_schedule <- paste(rand_days, rand_shifts, c(1:work_weeks), sep = "_")
+    
+    # Enforce same number of work days each week by resampling for weeks where random shift scheduled is already a work shift
+    while(sum(rand_days_schedule %in% work_days_schedule)){
+      overlap_shifts <- rand_days_schedule[rand_days_schedule %in% work_days_schedule]
+      
+      redo_weeks <- sapply(overlap_shifts, function(i) as.numeric(substr(i, 5, 6)))
+      
+      redo_rand_days   <- sample(c("U", "M", "T", "W", "R", "F", "S"), length(redo_weeks), replace = T)
+      redo_rand_shifts <- sample(c("M", "N", "E"), length(redo_weeks), replace = T)
+      
+      redo_shifts <- paste(redo_rand_days, redo_rand_shifts, redo_weeks, sep = "_")
+      
+      rand_days_schedule[which(rand_days_schedule %in% work_days_schedule)] <- redo_shifts
+      
+    }
+    
+    schedule_fin <- if_else(master_schedule %in% c(work_days_schedule, rand_days_schedule), 1, 0)
+    
+    # Binary test schedule with random days each work week
+    work_days_string <- sapply(1:nchar(work_days), function(x){substr(work_days,x,x)})
+    
+    test_days <- unlist(lapply(1:work_weeks, function(x){sample(work_days_string, 
+                                                                ifelse(test_freq < 1, 1, test_freq), 
+                                                                replace = F)}))
+    test_days_schedule <- paste(test_days, work_shift, rep(c(1:work_weeks), 
+                                                           each = ifelse(test_freq < 1, 1, test_freq)), 
+                                sep = "_")
+    
+    test_schedule <- if_else(master_schedule %in% test_days_schedule, 1, 0)
+    
+    # Adjust if only doing biweekly testing by removing every other test
+    if(test_freq < 1){
+      testdays_num  <- which(test_schedule == 1)   
+      subweek_remove <- testdays_num[seq(1/test_freq, length(testdays_num), 1/test_freq)]
+      test_schedule[subweek_remove] <- 0
+    }
+    
+    # Return worker characteristics in list  
+    worker                <- list()
+    worker$state          <- state
+    worker$t_latent       <- t_lnt
+    worker$t_incubation   <- t_inc
+    worker$t_infectious   <- t_inf
+    worker$infectiousness <- numeric()
+    worker$t_infect       <- -Inf
+    worker$delay          <- 0
+    worker$work_schedule  <- schedule_fin
+    worker$test_schedule  <- test_schedule
+    
+    return(worker)
+    
+  })
+}
 
 # Simulate transmission given parameters, time characteristics, and workers
 sim_work_transmission <- function(Lambda, R_work, R, delay, test_sens, workers, sim_t, dt, verbose = FALSE){
@@ -260,7 +361,6 @@ sim_work_transmission <- function(Lambda, R_work, R, delay, test_sens, workers, 
       cat(tests_adm[t], "tests administered\n")
     }
     
-    
     # Testing conducted. If worker infectious above test sens level, flagged as tested and sets clock for delay until test result returned and quarantine
     for(i in tested){
       # If worker actively infectious
@@ -280,8 +380,10 @@ sim_work_transmission <- function(Lambda, R_work, R, delay, test_sens, workers, 
       }
     }
     
+    states_updated <- unlist(lapply(workers, function(w) w$state[t]))
+    
     # Test delay and quarantine on notification of positive if delay > 0
-    for(i in which(states == "T")){
+    for(i in which(states_updated == "T")){
       workers[[i]]$delay <- workers[[i]]$delay - 1
       if(workers[[i]]$delay <= 0){
         workers[[i]]$state[t] <- "Q"
@@ -293,7 +395,7 @@ sim_work_transmission <- function(Lambda, R_work, R, delay, test_sens, workers, 
     # New infections ------------
     # Determine who's working and infectious
     working <- which(unlist(lapply(workers, function(w) w$work_schedule[t])) == 1)
-    infectors_t  <- which(states %in% c("I", "T")) # Workers infectious or waiting on test will transmit
+    infectors_t  <- which(states_updated %in% c("I", "T")) # Workers infectious or waiting on test will transmit
     inf_work_t   <- unlist(lapply(infectors_t, function(i) workers[[i]]$work_schedule[t]))
     infectious_t <- unlist(lapply(infectors_t, function(i) workers[[i]]$infectiousness[workers[[i]]$t_infect]))
     
@@ -342,7 +444,7 @@ sim_work_transmission <- function(Lambda, R_work, R, delay, test_sens, workers, 
     }
     
     exp_cases[t] <- sum(inf_work_t*infectious_t*R)
-    inf_days[t]  <- sum(inf_work_t*infectious_t*R > 1)
+    inf_days[t]  <- sum(inf_work_t*infectious_t*R > 0)
   }
   
   out_cases_tests <- tibble("exp_cases" = exp_cases,
