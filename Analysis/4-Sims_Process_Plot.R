@@ -218,6 +218,13 @@ save.image("data/sim_results_processed.RData")
 sims_sum_ggplot %>% 
   #filter(measure %in% c("Transmissions avoided/\n1000 tests", "Transmissions"), work_sched == "leaky") %>% 
   filter(measure == "Transmissions", work_sched == "leaky") %>% 
+  # Convert weekly work schedule test frequencies to daily test frequency to match analytic results
+  mutate(`Test Frequency` = factor(case_when(`Test Frequency` == 0 ~ "None",
+                                      `Test Frequency` == 0.5 ~ "14",
+                                      `Test Frequency` == 1 ~ "7",
+                                      `Test Frequency` == 2 ~ "3.5",
+                                      `Test Frequency` == 4 ~ "1"),
+         levels = c("None", "14", "7", "3.5", "1"))) %>% 
   ggplot(aes(x = `Community Prevalence`,
              y = Med,
              ymin = q25,
@@ -241,13 +248,20 @@ sims_sum_ggplot %>%
           axis.text = element_text(size = 10)) +
     labs(y = "")
   
-ggsave(here::here("Plots/sim_results_8panel_R_CommPrev.png"),
+ggsave(here::here("Plots/sim_results_3panel_R_CommPrev.png"),
        width = 7, height = 5.5, units = "in")
 
   
 # Plot focusing on difference between systematic and random strategies---------------------------
 sims_sum_ggplot %>% 
   filter(measure == "Transmissions", work_sched == "leaky", R == R2) %>% 
+  # Convert weekly work schedule test frequencies to daily test frequency to match analytic results
+  mutate(`Test Frequency` = factor(case_when(`Test Frequency` == 0 ~ "0",
+                                             `Test Frequency` == 0.5 ~ "14",
+                                             `Test Frequency` == 1 ~ "7",
+                                             `Test Frequency` == 2 ~ "3.5",
+                                             `Test Frequency` == 4 ~ "1"),
+                                   levels = c("0", "14", "7", "3.5", "1"))) %>% 
   ggplot(aes(x = `Community Prevalence`,
              y = Med,
              ymin = q25,
@@ -273,6 +287,12 @@ ggsave(here::here("Plots/sim_results_transmissions.png"),
 # Plot focusing on incremental test effectiveness ratio across transmission intensities---------------------------
 sims_sum_ggplot %>% 
   filter(measure == "ITER", work_sched == "leaky", testsys == "systematic", testfreq > 0) %>% 
+  mutate(`Test Frequency` = factor(case_when(`Test Frequency` == 0 ~ "0",
+                                             `Test Frequency` == 0.5 ~ "14",
+                                             `Test Frequency` == 1 ~ "7",
+                                             `Test Frequency` == 2 ~ "3.5",
+                                             `Test Frequency` == 4 ~ "1"),
+                                   levels = c("0", "14", "7", "3.5", "1"))) %>% 
   ggplot(aes(x = `Community Prevalence`,
              y = Med,
              ymin = q25,

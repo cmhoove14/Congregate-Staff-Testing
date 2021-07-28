@@ -51,15 +51,28 @@ R_iso <- function(t_latent, t_peak, t_infectious, t_iso, R){
 
 R_iso_f <- function(t_latent, t_peak, t_infectious, t_freq, d, dt, R){
   t_tot     <- t_latent + (t_peak-t_latent) + t_infectious
+  t_eval    <- seq(t_latent, t_tot, by = dt)
   
-  beta_t <- dtriangle(x = seq(t_latent, t_tot, by = dt),
+  beta_t <- dtriangle(x = t_eval,
                       a = t_latent,
                       b = t_tot,
-                      c = t_peak)
+                      c = t_peak)*dt
   
-  p_t_test <- (1-1/((t_freq^-1)+d))^(seq(t_latent, t_tot, by = dt)-t_latent)
+  if(round(sum(beta_t),2) != 1.0){
+    warning("PDF summed to", sum(beta_t))
+  }
   
-  R_iso_f <- R * sum(beta_t*p_t_test*dt)
+  p_t_test <- (1-t_freq)^(t_eval-t_latent-d)
+  
+  p_t_test[(t_eval-t_latent) < d] <- 1
+  
+  r_red <- sum(beta_t*p_t_test)
+  
+  if(r_red > 1 | r_red < 0){
+    stop(cat("R reduction out of range, R_red =", r_red))
+  }
+  
+  R_iso_f <- R * r_red
   
   return(R_iso_f)
 }
