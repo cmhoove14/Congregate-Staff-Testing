@@ -1,8 +1,8 @@
 # Generate vector or matrix of infection trajectory parameters  
 sim_inf_pars <- function(n){
   t_inc <- rlnorm(n, 1.63, 0.5)
-  t_lnt <- t_inc + runif(n, -2, 0)
-  t_inf <- runif(n, 6.5, 9.5)
+  t_lnt <- t_inc - runif(n, 0, 2)
+  t_inf <- runif(n, 7, 10)
   
   return(cbind(t_inc, t_lnt, t_inf))
 }

@@ -15,6 +15,7 @@ set.seed(430)
 sim_grid <- expand.grid(test_freq  = c(0,0.5,1,2,4),
                         test_sys   = c("systematic", "random"),
                         work_sched = c("leaky", "cohort"),
+                        delay      = c(0,1,2),
                         comm_prev  = c(lambda1,lambda2,lambda3),
                         R          = c(R1, R2, R3))
 
@@ -83,8 +84,9 @@ all_sims <- bind_rows(parLapply(cl = clooster,
                                   test_freq  = sim_grid_expand[i,1]
                                   test_sys   = sim_grid_expand[i,2]
                                   work_sched = sim_grid_expand[i,3]
-                                  comm_prev  = sim_grid_expand[i,4]
-                                  R          = sim_grid_expand[i,5]
+                                  d          = sim_grid_expand[i,4]
+                                  comm_prev  = sim_grid_expand[i,5]
+                                  R          = sim_grid_expand[i,6]
                                   
                                   if(work_sched == "leaky"){
                                     workers_use_char <- ifelse(test_sys == "systematic",
@@ -115,7 +117,7 @@ all_sims <- bind_rows(parLapply(cl = clooster,
                                   sim_work_transmission(Lambda    = comm_prev*dt,
                                                         R_work    = R,
                                                         R         = R,
-                                                        delay     = 0,
+                                                        delay     = d,
                                                         test_sens = 0,
                                                         workers   = workers_use,
                                                         sim_t     = sim_t,
@@ -125,6 +127,7 @@ all_sims <- bind_rows(parLapply(cl = clooster,
                                            lambda = comm_prev, 
                                            R = R,
                                            work_sched = work_sched,
+                                           delay = d,
                                            testsys = test_sys,
                                            testfreq = test_freq)
                                   
@@ -134,7 +137,7 @@ stopCluster(clooster)
 
 # Summarise sims to totals at the end of the sim 
 sims_end <- all_sims %>% 
-  group_by(sim, lambda, R, work_sched, testsys, testfreq) %>% 
+  group_by(sim, lambda, R, work_sched, delay, testsys, testfreq) %>% 
   summarise(totcases = sum(exp_cases),
             totdays  = sum(inf_days),
             tottests = sum(tests_adm)) %>% 

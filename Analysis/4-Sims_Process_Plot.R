@@ -11,92 +11,93 @@ sims_end <- readRDS("data/sims_end_totals.RDS")
 
 # Summarise across all simulations for each parameter set
 sims_sum <- sims_end %>% 
-  group_by(lambda, R, work_sched, testsys, testfreq) %>% 
+  group_by(lambda, R, work_sched, delay, testsys, testfreq) %>% 
   summarise(across(.cols = c("totcases", "totdays", "tottests"),
                    .fns  = list("median", "q_025", "q_25", "q_75", "q_975"))) %>% 
   ungroup()
 
 # get expected cases in no-testing scenario for each transmission intensity, R combination, and work schedule type
+# Filtering to no test delay too, but since no testing, delay won't matter. Just filtering so sample size is right
 # lambda 1s
   # leaky
     l1_R1_exp_cases_base_leaky <- sims_sum %>% 
-      filter(testfreq == 0 & lambda == lambda1 & R == R1 & work_sched == "leaky") %>% 
+      filter(testfreq == 0 & lambda == lambda1 & R == R1 & work_sched == "leaky" & delay == 0) %>% 
       pull(totcases_1)
     
     l1_R2_exp_cases_base_leaky <- sims_sum %>% 
-      filter(testfreq == 0 & lambda == lambda1 & R == R2 & work_sched == "leaky") %>% 
+      filter(testfreq == 0 & lambda == lambda1 & R == R2 & work_sched == "leaky" & delay == 0) %>% 
       pull(totcases_1)
     
     l1_R3_exp_cases_base_leaky <- sims_sum %>% 
-      filter(testfreq == 0 & lambda == lambda1 & R == R3 & work_sched == "leaky") %>% 
+      filter(testfreq == 0 & lambda == lambda1 & R == R3 & work_sched == "leaky" & delay == 0) %>% 
       pull(totcases_1)
     
   # cohorted
     l1_R1_exp_cases_base_cohort <- sims_sum %>% 
-      filter(testfreq == 0 & lambda == lambda1 & R == R1 & work_sched == "cohort") %>% 
+      filter(testfreq == 0 & lambda == lambda1 & R == R1 & work_sched == "cohort" & delay == 0) %>% 
       pull(totcases_1)
     
     l1_R2_exp_cases_base_cohort <- sims_sum %>% 
-      filter(testfreq == 0 & lambda == lambda1 & R == R2 & work_sched == "cohort") %>% 
+      filter(testfreq == 0 & lambda == lambda1 & R == R2 & work_sched == "cohort" & delay == 0) %>% 
       pull(totcases_1)
     
     l1_R3_exp_cases_base_cohort <- sims_sum %>% 
-      filter(testfreq == 0 & lambda == lambda1 & R == R3 & work_sched == "cohort") %>% 
+      filter(testfreq == 0 & lambda == lambda1 & R == R3 & work_sched == "cohort" & delay == 0) %>% 
       pull(totcases_1)
   
 
 # Lambda 2s
   # leaky
     l2_R1_exp_cases_base_leaky <- sims_sum %>% 
-      filter(testfreq == 0 & lambda == lambda2 & R == R1 & work_sched == "leaky") %>% 
+      filter(testfreq == 0 & lambda == lambda2 & R == R1 & work_sched == "leaky" & delay == 0) %>% 
       pull(totcases_1)
     
     l2_R2_exp_cases_base_leaky <- sims_sum %>% 
-      filter(testfreq == 0 & lambda == lambda2 & R == R2 & work_sched == "leaky") %>% 
+      filter(testfreq == 0 & lambda == lambda2 & R == R2 & work_sched == "leaky" & delay == 0) %>% 
       pull(totcases_1)
     
     l2_R3_exp_cases_base_leaky <- sims_sum %>% 
-      filter(testfreq == 0 & lambda == lambda2 & R == R3 & work_sched == "leaky") %>% 
+      filter(testfreq == 0 & lambda == lambda2 & R == R3 & work_sched == "leaky" & delay == 0) %>% 
       pull(totcases_1)
     
   # cohorted
     l2_R1_exp_cases_base_cohort <- sims_sum %>% 
-      filter(testfreq == 0 & lambda == lambda2 & R == R1 & work_sched == "cohort") %>% 
+      filter(testfreq == 0 & lambda == lambda2 & R == R1 & work_sched == "cohort" & delay == 0) %>% 
       pull(totcases_1)
     
     l2_R2_exp_cases_base_cohort <- sims_sum %>% 
-      filter(testfreq == 0 & lambda == lambda2 & R == R2 & work_sched == "cohort") %>% 
+      filter(testfreq == 0 & lambda == lambda2 & R == R2 & work_sched == "cohort" & delay == 0) %>% 
       pull(totcases_1)
     
     l2_R3_exp_cases_base_cohort <- sims_sum %>% 
-      filter(testfreq == 0 & lambda == lambda2 & R == R3 & work_sched == "cohort") %>% 
+      filter(testfreq == 0 & lambda == lambda2 & R == R3 & work_sched == "cohort" & delay == 0) %>% 
       pull(totcases_1)
     
 # lambda 3s
   # leaky
     l3_R1_exp_cases_base_leaky <- sims_sum %>% 
-      filter(testfreq == 0 & lambda == lambda3 & R == R1 & work_sched == "leaky") %>% 
+      filter(testfreq == 0 & lambda == lambda3 & R == R1 & work_sched == "leaky" & delay == 0) %>% 
       pull(totcases_1)
     
     l3_R2_exp_cases_base_leaky <- sims_sum %>% 
-      filter(testfreq == 0 & lambda == lambda3 & R == R2 & work_sched == "leaky") %>% 
+      filter(testfreq == 0 & lambda == lambda3 & R == R2 & work_sched == "leaky" & delay == 0) %>% 
       pull(totcases_1)
     
     l3_R3_exp_cases_base_leaky <- sims_sum %>% 
-      filter(testfreq == 0 & lambda == lambda3 & R == R3 & work_sched == "leaky") %>% 
+      filter(testfreq == 0 & lambda == lambda3 & R == R3 & work_sched == "leaky" & delay == 0) %>% 
       pull(totcases_1)
     
   # cohorted
     l3_R1_exp_cases_base_cohort <- sims_sum %>% 
-      filter(testfreq == 0 & lambda == lambda3 & R == R1 & work_sched == "cohort") %>% 
+      filter(testfreq == 0 & lambda == lambda3 & R == R1 & work_sched == "cohort" & delay == 0) %>% 
       pull(totcases_1)
     
     l3_R2_exp_cases_base_cohort <- sims_sum %>% 
-      filter(testfreq == 0 & lambda == lambda3 & R == R2 & work_sched == "cohort") %>% 
+      filter(testfreq == 0 & lambda == lambda3 & R == R2 & work_sched == "cohort" & delay == 0) %>% 
       pull(totcases_1)
     
     l3_R3_exp_cases_base_cohort <- sims_sum %>% 
-      filter(testfreq == 0 & lambda == lambda3 & R == R3 & work_sched == "cohort") %>% 
+      filter(testfreq == 0 & lambda == lambda3 & R == R3 & work_sched == "cohort" & delay == 0) %>% 
       pull(totcases_1)
     
 # Add cases avoided in reference to no-testing scenario
@@ -139,11 +140,12 @@ sims_sum2 <- sims_end %>%
                           lambda == lambda3 & R == R2 & work_sched == "cohort" ~ round(tottests / (l3_R2_exp_cases_base_cohort-totcases), 2),
                           lambda == lambda3 & R == R3 & work_sched == "cohort" ~ round(tottests / (l3_R3_exp_cases_base_cohort-totcases), 2)),
          tests1000s = tottests/1000) %>% 
-  group_by(lambda, R, work_sched, testsys, testfreq) %>% 
+  group_by(lambda, R, work_sched, delay, testsys, testfreq) %>% 
   summarise(across(.cols = c("totcases", "totdays", "tests1000s", "avoidedpertest", "ITER"),
                    .fns  = list("median", "q_25", "q_75"))) %>% 
   ungroup() %>% 
   mutate(`Test Strategy` = if_else(testsys == "systematic", "Systematic", "Random"),
+         `Test Strategy Delay` = paste0(`Test Strategy`, " - delay ", delay), 
          `Test Frequency`= as.factor(testfreq),
          `Test System`   = factor(case_when(testfreq == 0 ~ "None",
                                             testsys == "random" & testfreq == 0.5 ~ "Random 0.5",
@@ -168,7 +170,9 @@ sims_sum2 <- sims_end %>%
 
 
 sims_sum_ggplot <- sims_sum2 %>% 
-  mutate(avoidedpertest_2 = if_else(is.infinite(avoidedpertest_2), NA_real_, avoidedpertest_2),
+  # Remove infinites in no test scenarios due to divide by 0 due to 0 tests
+  mutate(avoidedpertest_1 = if_else(is.infinite(avoidedpertest_1), NA_real_, avoidedpertest_1),
+         avoidedpertest_2 = if_else(is.infinite(avoidedpertest_2), NA_real_, avoidedpertest_2),
          avoidedpertest_3 = if_else(is.infinite(avoidedpertest_3), NA_real_, avoidedpertest_3)) %>% 
   pivot_longer(cols = totcases_1:ITER_3,
                names_sep = "_",

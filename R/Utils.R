@@ -5,7 +5,7 @@ infectious_profile <- function(t_latent, t_peak, t_infectious, dt){
     stop("Latent period ", t_latent,
          "is greater than incubation period ", t_peak)
   }
-  t_tot     <- t_latent + (t_peak-t_latent) + t_infectious
+  t_tot     <- t_latent + t_infectious
   
   dtriangle(x = seq(0, t_tot, by = dt),
             a = t_latent,
@@ -14,7 +14,7 @@ infectious_profile <- function(t_latent, t_peak, t_infectious, dt){
 }
 
 R_iso <- function(t_latent, t_peak, t_infectious, t_iso, R){
-  t_tot     <- t_latent + (t_peak-t_latent) + t_infectious
+  t_tot     <- t_latent + t_infectious
 
   if(t_iso <= t_latent){
     
@@ -50,29 +50,33 @@ R_iso <- function(t_latent, t_peak, t_infectious, t_iso, R){
 }
 
 R_iso_f <- function(t_latent, t_peak, t_infectious, t_freq, d, dt, R){
-  t_tot     <- t_latent + (t_peak-t_latent) + t_infectious
-  t_eval    <- seq(t_latent, t_tot, by = dt)
+  t_tot     <- t_latent + t_infectious
+  t_eval    <- seq(t_latent+d, t_tot, by = dt)
+  
+  if(t_freq == 1 & d == 0 & dt == 1){
+    
+    p_t_test = rep(1, length(t_eval))
+    
+  } else {
+    
+    # Hack 1 into first entry because imprecision leading to near 0 (e^-16 numbers) in exponent leading to -Inf
+    p_t_test <- c(1, 1 - (1-t_freq)^(t_eval[-1]-t_latent-d))
+    
+  }
   
   beta_t <- dtriangle(x = t_eval,
                       a = t_latent,
                       b = t_tot,
                       c = t_peak)*dt
   
-  if(round(sum(beta_t),2) != 1.0){
-    warning("PDF summed to", sum(beta_t))
+  r_red <- R*sum(beta_t*p_t_test)
+  
+  if(round(r_red, 2) > 1 | round(r_red, 2) < 0){
+    stop(cat("R reduction out of range, R_red =", r_red, "\n",
+             "t_lat =", t_latent, "t_peak =",t_peak, "t_inf =",t_infectious, "f =",t_freq,"d =", d))
   }
   
-  p_t_test <- (1-t_freq)^(t_eval-t_latent-d)
-  
-  p_t_test[(t_eval-t_latent) < d] <- 1
-  
-  r_red <- sum(beta_t*p_t_test)
-  
-  if(r_red > 1 | r_red < 0){
-    stop(cat("R reduction out of range, R_red =", r_red))
-  }
-  
-  R_iso_f <- R * r_red
+  R_iso_f <- R - r_red
   
   return(R_iso_f)
 }
