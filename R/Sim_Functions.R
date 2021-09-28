@@ -7,6 +7,20 @@ sim_inf_pars <- function(n){
   return(cbind(t_inc, t_lnt, t_inf))
 }
 
+# Parameters of incubation period for delta variant solved from reported mean and median reported in http://weekly.chinacdc.cn/fileCCDCW/journal/article/ccdcw/2021/27/PDF/Guangdongnote2.pdf assuming lognormal distribution
+# mu = exp(median) ; reported median = 4.0
+# mean = exp(mu+(s^2)/2) ; reported mean = 4.4, mu solved from above, solve for s^2
+sim_inf_pars_delta <- function(n){
+  t_inc <- rlnorm(n, 1.39, 0.18)
+  t_lnt <- t_inc - runif(n, 0, 2)
+  t_inf <- runif(n, 7, 10)
+  
+  return(cbind(t_inc, t_lnt, t_inf))
+}
+
+plot(density(rlnorm(1000, 1.63, 0.5)), col = "grey30", ylim = c(0,0.5))
+  lines(density(rlnorm(1000, 1.39, 0.18)), col = "red")
+
 # Generate workers with systematic test schedules
 generate_workers <- function(n_workers, sim_t, schedule_days, schedule_shifts, testdays, test_freq){
   lapply(1:n_workers, function(s){
