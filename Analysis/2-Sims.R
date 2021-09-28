@@ -30,7 +30,9 @@ sim_grid_expand <- as.data.frame(sim_grid) %>%
 #                                   R_work    = 1,
 #                                   R         = 1,
 #                                   delay     = 0,
-#                                   test_sens = 0,
+#                                   test_thresh = 0,
+#                                   test_spec = 1,
+#                                   test_sens = 1, 
 #                                   workers   = workers_leaky_testday1,
 #                                   sim_t     = sim_t,
 #                                   dt        = dt,
@@ -43,7 +45,7 @@ sim_grid_expand <- as.data.frame(sim_grid) %>%
 #   work_sched = sim_grid[i,3]
 #   comm_prev  = sim_grid[i,4]
 #   R          = sim_grid[i,5]
-#   
+#
 #   if(work_sched == "leaky"){
 #     workers_use_char <- ifelse(test_sys == "systematic",
 #                                ifelse(test_freq == 0, "workers_leaky",
@@ -51,7 +53,7 @@ sim_grid_expand <- as.data.frame(sim_grid) %>%
 #                                              ifelse(test_freq == 1, "workers_leaky_testday1",
 #                                                     ifelse(test_freq == 2, "workers_leaky_testday13", "workers_leaky_testday1234")))),
 #                                ifelse(test_freq == 0.5, "workers_leaky_testday_r1_biweekly",
-#                                       ifelse(test_freq == 1, "workers_leaky_testday_r1", 
+#                                       ifelse(test_freq == 1, "workers_leaky_testday_r1",
 #                                              ifelse(test_freq == 2, "workers_leaky_testday_r2", "workers_leaky_testday_r4"))))
 #   } else if(work_sched == "cohort"){
 #     workers_use_char <- ifelse(test_sys == "systematic",
@@ -60,14 +62,14 @@ sim_grid_expand <- as.data.frame(sim_grid) %>%
 #                                              ifelse(test_freq == 1, "workers_testday1",
 #                                                     ifelse(test_freq == 2, "workers_testday13", "workers_testday1234")))),
 #                                ifelse(test_freq == 0.5, "workers_testday_r1_biweekly",
-#                                       ifelse(test_freq == 1, "workers_testday_r1", 
+#                                       ifelse(test_freq == 1, "workers_testday_r1",
 #                                              ifelse(test_freq == 2, "workers_testday_r2", "workers_testday_r4"))))
-#     
+#
 #   } else {
 #     # Will throw error below
 #     workers_use_char <- NULL
 #   }
-#   #   
+#   #
 #      print(workers_use_char)
 # }
 
@@ -118,7 +120,9 @@ all_sims <- bind_rows(parLapply(cl = clooster,
                                                         R_work    = R,
                                                         R         = R,
                                                         delay     = d,
-                                                        test_sens = 0,
+                                                        test_thresh = 0,
+                                                        test_spec = 1,
+                                                        test_sens = 1, 
                                                         workers   = workers_use,
                                                         sim_t     = sim_t,
                                                         dt        = dt,
