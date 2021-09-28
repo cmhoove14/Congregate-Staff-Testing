@@ -94,9 +94,13 @@ test_workers <- function(test_indices, workers, timestep, test_thresh = 0, test_
     worker = test_indices[i]
     
     # If false positive test, worker enters delay then quarantine as if true positive. else progresses as normal
-    if(FP[i] == 1){
-      workers[[worker]]$state[timestep] <- "T"
-      workers[[worker]]$delay <- delay
+    if(test_spec < 1){
+      
+      if(FP[i] == 1){
+        workers[[worker]]$state[timestep] <- "T"
+        workers[[worker]]$delay <- delay
+      }
+      
     } else {
       # If worker actively infectious
       if(workers[[worker]]$state[timestep-1] == "I" &
@@ -118,12 +122,6 @@ test_workers <- function(test_indices, workers, timestep, test_thresh = 0, test_
           }
         }  
       }  
-    }
-    # If no delay, instantly quarantine
-    if(delay <= 0 & workers[[worker]]$state[timestep] == "T"){
-      workers[[worker]]$state[timestep] <- "Q"
-      # Workers who are isolated after testing positive not tested again for 90 days per guidance
-      workers[[worker]]$test_schedule[timestep:min(c(timestep+90*(1/dt), sim_t))] <- 0 
     }
   }  
   
