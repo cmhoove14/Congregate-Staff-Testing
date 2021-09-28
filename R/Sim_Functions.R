@@ -18,18 +18,18 @@ sim_inf_pars_delta <- function(n){
   return(cbind(t_inc, t_lnt, t_inf))
 }
 
-plot(density(rlnorm(1000, 1.63, 0.5)), col = "grey30", ylim = c(0,0.5))
-  lines(density(rlnorm(1000, 1.39, 0.18)), col = "red")
+# plot(density(rlnorm(1000, 1.63, 0.5)), col = "grey30", ylim = c(0,0.5))
+#   lines(density(rlnorm(1000, 1.39, 0.18)), col = "red")
 
 # Generate workers with systematic test schedules
-generate_workers <- function(n_workers, sim_t, schedule_days, schedule_shifts, testdays, test_freq){
+generate_workers <- function(n_workers, sim_t, inf_pars_fx, schedule_days, schedule_shifts, testdays, test_freq){
   lapply(1:n_workers, function(s){
     # Worker state and infectious profile parameters for if/when they become infected  
     state <- character(sim_t+1)
     state[1] <- "S"
     
     
-    inf_pars <- sim_inf_pars(1)
+    inf_pars <- inf_pars_fx(1)
     t_inc <- inf_pars[1]
     t_lnt <- inf_pars[2]
     t_inf <- inf_pars[3]
@@ -88,7 +88,7 @@ generate_workers <- function(n_workers, sim_t, schedule_days, schedule_shifts, t
 }
 
 # Generate workers with systematic test schedule, one random work shift per week
-generate_workers_leaky <- function(n_workers, sim_t, schedule_days, schedule_shifts, testdays, test_freq){
+generate_workers_leaky <- function(n_workers, sim_t, inf_pars_fx, schedule_days, schedule_shifts, testdays, test_freq){
   
   work_weeks <- ceiling(length(schedule_shifts)/length(unique(schedule_shifts))/7)
   
@@ -98,7 +98,7 @@ generate_workers_leaky <- function(n_workers, sim_t, schedule_days, schedule_shi
     state[1] <- "S"
     
     
-    inf_pars <- sim_inf_pars(1)
+    inf_pars <- inf_pars_fx(1)
     t_inc <- inf_pars[1]
     t_lnt <- inf_pars[2]
     t_inf <- inf_pars[3]
@@ -178,7 +178,7 @@ generate_workers_leaky <- function(n_workers, sim_t, schedule_days, schedule_shi
 }
 
 # Generate workers with random test schedules
-generate_workers_random <- function(n_workers, sim_t, schedule_days, schedule_shifts, master_schedule, test_freq){
+generate_workers_random <- function(n_workers, sim_t, inf_pars_fx, schedule_days, schedule_shifts, master_schedule, test_freq){
   
   work_weeks <- ceiling(length(schedule_shifts)/length(unique(schedule_shifts))/7)
   
@@ -188,7 +188,7 @@ generate_workers_random <- function(n_workers, sim_t, schedule_days, schedule_sh
     state[1] <- "S"
     
     
-    inf_pars <- sim_inf_pars(1)
+    inf_pars <- inf_pars_fx(1)
     t_inc <- inf_pars[1]
     t_lnt <- inf_pars[2]
     t_inf <- inf_pars[3]
@@ -249,7 +249,7 @@ generate_workers_random <- function(n_workers, sim_t, schedule_days, schedule_sh
 }
 
 # Generate workers with random test schedules, one random work shift per week
-generate_workers_leaky_random <- function(n_workers, sim_t, schedule_days, schedule_shifts, master_schedule, test_freq){
+generate_workers_leaky_random <- function(n_workers, sim_t, inf_pars_fx, schedule_days, schedule_shifts, master_schedule, test_freq){
   
   work_weeks <- ceiling(length(schedule_shifts)/length(unique(schedule_shifts))/7)
   
@@ -259,7 +259,7 @@ generate_workers_leaky_random <- function(n_workers, sim_t, schedule_days, sched
     state[1] <- "S"
     
     
-    inf_pars <- sim_inf_pars(1)
+    inf_pars <- inf_pars_fx(1)
     t_inc <- inf_pars[1]
     t_lnt <- inf_pars[2]
     t_inf <- inf_pars[3]
