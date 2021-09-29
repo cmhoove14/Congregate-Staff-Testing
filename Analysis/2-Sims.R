@@ -5,10 +5,10 @@
 
 library(parallel)
 
+load("data/sim_workers.RData")
 source("R/Utils.R")
 source("R/Sim_Functions.R")
 source("Analysis/0-Sim_Setup.R")
-load("data/sim_workers.RData")
 
 set.seed(430)
 
