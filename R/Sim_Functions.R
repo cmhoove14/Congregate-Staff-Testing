@@ -340,7 +340,7 @@ generate_workers_leaky_random <- function(n_workers, sim_t, inf_pars_fx, schedul
 }
 
 # Simulate transmission given parameters, time characteristics, and workers
-sim_work_transmission <- function(Lambda, R_work, R, delay, test_thresh, test_sens, test_spec, workers, sim_t, dt, verbose = FALSE){
+sim_work_transmission <- function(Lambda, R_work, R, delay, test_thresh, test_sens, test_spec, workers, sim_t, dt, symps = FALSE, p_symp = 0.8, p_selfiso = 1, verbose = FALSE){
   
   inf_days  <- numeric(sim_t)
   exp_cases <- numeric(sim_t)
@@ -357,7 +357,7 @@ sim_work_transmission <- function(Lambda, R_work, R, delay, test_thresh, test_se
       
       # Worker becomes infectious if past latent period and not yet tested/quarantined
       if(workers[[i]]$t_infect*dt > workers[[i]]$t_latent & 
-         workers[[i]]$state[t-1] %in% c("E", "I")){
+         workers[[i]]$state[t-1] == "E"){
         workers[[i]]$state[t] <- "I"
       }
       
@@ -393,6 +393,15 @@ sim_work_transmission <- function(Lambda, R_work, R, delay, test_thresh, test_se
       }
     }
     
+    # Self-isolation due to symptoms if modeling symptoms
+    if(symps){
+      for(i in which(states_updated == "I")){
+        if(workers[[i]]$selfiso == 1 & workers[[i]]$t_infect >= which.max(workers[[i]]$infectiousness)){
+          workers[[i]]$state[t] <- "Q"
+        }
+      }
+    }
+    
     # New infections ------------
     # Determine who's working and infectious
     working <- which(unlist(lapply(workers, function(w) w$work_schedule[t])) == 1)
@@ -419,6 +428,11 @@ sim_work_transmission <- function(Lambda, R_work, R, delay, test_thresh, test_se
                                                           t_peak       = workers[[i]]$t_incubation, 
                                                           t_infectious = workers[[i]]$t_infectious, 
                                                           dt           = dt)
+        if(symps){
+          # All we really care about is if someone ends up self-isolation due to symptoms, so only record selfiso variable
+          symp                 <- rbinom(1,1,p_symp)
+          workers[[i]]$selfiso <- ifelse(symp == 1, rbinom(1,1,p_selfiso), 0)
+        }
       }
     }
     
@@ -460,137 +474,3 @@ sim_work_transmission <- function(Lambda, R_work, R, delay, test_thresh, test_se
   return(out_list)
 } 
 
-# Simulate transmission given parameters, time characteristics, and workers
-sim_work_transmission_selfiso <- function(Lambda, alpha, R, delay, test_thresh, workers, sim_t, dt, p_symp, verbose = FALSE){
-  
-  exp_cases <- numeric(sim_t)
-  tests_adm <- numeric(sim_t)
-  
-  for(t in 2:sim_t){
-    cat(t,"\n")
-    # Advance infections ----------
-    states       <- unlist(lapply(workers, function(w) w$state[t-1]))
-    infecteds    <- which(states %in% c("E", "I", "T", "Q"))
-    
-    for(i in infecteds){
-      # Advance time infected
-      workers[[i]]$t_infect <- workers[[i]]$t_infect+1
-      
-      # Worker becomes infectious if past latent period and not yet tested/quarantined
-      if(workers[[i]]$t_infect*dt > workers[[i]]$t_latent & 
-         workers[[i]]$state[t-1] %in% c("E", "I")){
-        workers[[i]]$state[t] <- "I"
-      }
-      
-      # Worker is recovered if past end of infectious period
-      if(workers[[i]]$t_infect > length(workers[[i]]$infectiousness)){
-        workers[[i]]$state[t] <- "R"
-      }
-    }
-    
-    # Testing and isolation  -----------
-    tested <- which(unlist(lapply(workers, function(w) w$test_schedule[t])) == 1 & 
-                      states != "Q") 
-    tests_adm[t] <- length(tested)
-    
-    if(verbose){
-      cat(tests_adm[t], "tests administered\n")
-    }
-    
-    
-    # Testing conducted. If worker infectious above test sens level, flagged as tested and sets clock for delay until test result returned and quarantine
-    for(i in tested){
-      # If worker actively infectious
-      if(workers[[i]]$state[t-1] == "I" &
-         workers[[i]]$state[t] != "R"){
-        # If worker's infectiousness is greater than test sensitivity
-        if(workers[[i]]$infectiousness[workers[[i]]$t_infect] > test_thresh){
-          workers[[i]]$state[t] <- "T"
-          workers[[i]]$delay <- delay
-          # If no delay, instantly quarantine
-          if(delay <= 0 & workers[[i]]$state[t] == "T"){
-            workers[[i]]$state[t] <- "Q"
-          }
-        }
-      }
-    }
-    
-    # Test delay and quarantine on notification of positive if delay > 0
-    for(i in which(states == "T")){
-      workers[[i]]$delay <- workers[[i]]$delay - 1
-      if(workers[[i]]$delay <= 0){
-        workers[[i]]$state[t] <- "Q"
-      }
-    }
-    
-    # Self-isolation
-    symptomatic <- infecteds[which(sapply(infecteds, function(w) workers[[w]]$symp) == 1)] 
-    
-    for(i in symptomatic){
-      # Isolate if time since infection is at or past peak infectiousness: assumes symptom onset coincides with peak infectiousness
-      if(workers[[i]]$t_infect >= which.max(workers[[i]]$infectiousness)){
-        workers[[i]]$state[t] <- "Q"
-      }
-    }
-    
-    # New infections ------------
-    # Determine who's working
-    working <- which(unlist(lapply(workers, function(w) w$work_schedule[t])) == 1)
-    
-    # FOIs
-    Lambda_it          <- rep(Lambda*dt, length(workers)) # Community infectivity
-    Lambda_it[working] <- Lambda*dt*alpha                 # Workplace infectivity for those working
-    
-    # Bernoulli trials determine who is exposed, become infected if exposed and susceptible
-    bernoullis <- rbinom(length(workers),1,Lambda_it)
-    
-    new_Is <- which(bernoullis == 1 & states == "S")
-    
-    # Assign characteristics for newly exposed
-    if(length(new_Is) > 0){
-      for(i in new_Is){
-        workers[[i]]$state[t] <- "E"
-        workers[[i]]$t_infect <- 0
-        workers[[i]]$infectiousness <- infectious_profile(t_latent     = workers[[i]]$t_latent, 
-                                                          t_peak       = workers[[i]]$t_incubation, 
-                                                          t_infectious = workers[[i]]$t_infectious, 
-                                                          dt           = dt)
-        workers[[i]]$symp <- rbinom(1,1,p_symp)
-      }
-    }
-    
-    # Finalize advancement of states
-    states_advanced <- unlist(lapply(workers, function(w) w$state[t]))
-    unchanged <- which(states_advanced == "")
-    for(i in unchanged){
-      workers[[i]]$state[t] <- workers[[i]]$state[t-1]
-    }
-    
-    
-    # Infectious work days -------
-    infectors_t  <- which(states_advanced %in% c("I", "T")) # Workers infectious or waiting on test will transmit
-    inf_work_t   <- unlist(lapply(infectors_t, function(i) workers[[i]]$work_schedule[t]))
-    infectious_t <- unlist(lapply(infectors_t, function(i) workers[[i]]$infectiousness[workers[[i]]$t_infect]))
-    
-    if(verbose){
-      cat("S -", sum(states_advanced=="S"), "  ",
-          "E -", sum(states_advanced=="E"), "  ",
-          "I -", sum(states_advanced=="I"), "  ",
-          "T -", sum(states_advanced=="T"), "  ",
-          "Q -", sum(states_advanced=="Q"), "  ",
-          "R -", sum(states_advanced=="R"), "\n")
-    }
-    
-    exp_cases[t] <- sum(inf_work_t*infectious_t*R)
-  }
-  
-  out_cases_tests <- tibble("exp_cases" = exp_cases,
-                            "tests_adm" = tests_adm,
-                            "time"      = 1:sim_t)
-  
-  out_list <- list()
-  out_list$workers   <- workers
-  out_list$cases_tests <- out_cases_tests
-  
-  return(out_list)
-} 
