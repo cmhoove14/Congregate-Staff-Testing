@@ -396,9 +396,10 @@ sim_work_transmission <- function(Lambda, R_work, R, delay, test_thresh, test_se
     # Self-isolation due to symptoms if modeling symptoms
     if(symps){
       for(i in which(states_updated == "I")){
+        # Assume that symptoms start at time of peak infectiousness and that workers who self isolate do so upon symptom onset
         if(workers[[i]]$selfiso == 1 & workers[[i]]$t_infect >= which.max(workers[[i]]$infectiousness)){
           workers[[i]]$state[t] <- "Q"
-        }
+        } 
       }
     }
     
@@ -429,7 +430,7 @@ sim_work_transmission <- function(Lambda, R_work, R, delay, test_thresh, test_se
                                                           t_infectious = workers[[i]]$t_infectious, 
                                                           dt           = dt)
         if(symps){
-          # All we really care about is if someone ends up self-isolation due to symptoms, so only record selfiso variable
+          # All we really care about is if someone ends up self-isolating due to symptoms, so only record selfiso variable
           symp                 <- rbinom(1,1,p_symp)
           workers[[i]]$selfiso <- ifelse(symp == 1, rbinom(1,1,p_selfiso), 0)
         }
