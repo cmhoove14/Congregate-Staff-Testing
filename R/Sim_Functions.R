@@ -376,12 +376,14 @@ sim_work_transmission <- function(Lambda, R_work, R, delay, test_thresh, test_se
     }
     
     # Testing conducted. See Utils.R `test_workers` function for details
-    workers <- test_workers(test_indices = tested, workers = workers, timestep = t, 
-                            test_thresh = test_thresh, test_sens = test_sens, test_spec = test_spec, delay = delay)
+    if(length(tested) > 0){
+      workers <- test_workers(test_indices = tested, workers = workers, timestep = t, 
+                              test_thresh = test_thresh, test_sens = test_sens, test_spec = test_spec, delay = delay*1/dt)
+    }
     
     states_updated <- unlist(lapply(workers, function(w) w$state[t]))
     
-    # Test delay and quarantine on notification of positive if delay > 0
+    # Test delay and quarantine on notification of positive if delay > 0. If delay=0, this will send positive workers just tested straight to quarantine
     for(i in which(states_updated == "T")){
       workers[[i]]$delay <- workers[[i]]$delay - 1
       if(workers[[i]]$delay <= 0){
