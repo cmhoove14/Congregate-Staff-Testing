@@ -355,9 +355,12 @@ sim_work_transmission <- function(Lambda, R_work, R, delay, test_thresh, test_se
       # Advance time infected
       workers[[i]]$t_infect <- workers[[i]]$t_infect+1
       
+      # Update state to default to current state for infecteds. Will get overwritten below if state changes. This helps advance tested but not yet isolated workers progress to being isolated when there is a delay
+      workers[[i]]$state[t] <- workers[[i]]$state[t-1]
+
       # Worker becomes infectious if past latent period and not yet tested/quarantined
       if(workers[[i]]$t_infect*dt > workers[[i]]$t_latent & 
-         workers[[i]]$state[t-1] == "E"){
+         workers[[i]]$state[t-1] %in% c("E", "I")){
         workers[[i]]$state[t] <- "I"
       }
       
@@ -451,12 +454,14 @@ sim_work_transmission <- function(Lambda, R_work, R, delay, test_thresh, test_se
     infectious_t <- unlist(lapply(infectors_t, function(i) workers[[i]]$infectiousness[workers[[i]]$t_infect]))
     
     if(verbose){
-      cat("S -", sum(states_advanced=="S"), "  ",
-          "E -", sum(states_advanced=="E"), "  ",
-          "I -", sum(states_advanced=="I"), "  ",
-          "T -", sum(states_advanced=="T"), "  ",
-          "Q -", sum(states_advanced=="Q"), "  ",
-          "R -", sum(states_advanced=="R"), "\n")
+      states_fin <- unlist(lapply(workers, function(w) w$state[t]))
+      
+      cat("S -", sum(states_fin=="S"), "  ",
+          "E -", sum(states_fin=="E"), "  ",
+          "I -", sum(states_fin=="I"), "  ",
+          "T -", sum(states_fin=="T"), "  ",
+          "Q -", sum(states_fin=="Q"), "  ",
+          "R -", sum(states_fin=="R"), "\n")
     }
     
     exp_cases[t] <- sum(inf_work_t*infectious_t*R)
