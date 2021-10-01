@@ -1,5 +1,5 @@
 # -------------------------
-# Summarizing base simulations
+# Summarizing delta variant sensitivity simulations
 # Chris Hoover June 2021  
 # -------------------------
 
@@ -21,6 +21,21 @@ delta_sims_comp <- sims_end_comp %>%
                    .fns  = list("median", "q_025", "q_25", "q_75", "q_975"))) %>% 
   ungroup()
 
+# Effect of delta variant in context of test frequency and delay (comm prev = 1%, R=1.5)
+delta_sims_comp %>% 
+  filter(lambda == lambda2) %>% 
+  ggplot(aes(x = as.factor(testfreq), y = totcases_1, col = as.factor(delta))) +
+  geom_point(position = position_dodge(0.7)) +
+  geom_errorbar(aes(ymin = totcases_3, ymax = totcases_4), position = position_dodge(0.7), width = 0.2) +
+  facet_wrap(.~delay) +
+  scale_color_manual(values = c("grey50", "black")) +
+  theme_classic() +
+  labs(x = "Test Frequency (weekly)",
+       y = "Expected cases",
+       col = "Delta Variant",
+       title = "Delta variant sensitivity analysis across test delay")
+
+# Effect of delta variant in context of test frequency and community prevalence  (R=1.5)
 delta_sims_comp %>% 
   filter(delay == 0) %>% 
   ggplot(aes(x = as.factor(testfreq), y = totcases_1, col = as.factor(delta))) +
@@ -33,14 +48,3 @@ delta_sims_comp %>%
          col = "Delta Variant",
          title = "Delta variant sensitivity analysis across comm prevalence")
 
-delta_sims_comp %>% 
-  filter(lambda == lambda2) %>% 
-  ggplot(aes(x = as.factor(testfreq), y = totcases_1, col = as.factor(delta))) +
-  geom_point(position = position_dodge(0.7)) +
-  geom_errorbar(aes(ymin = totcases_3, ymax = totcases_4), position = position_dodge(0.7), width = 0.2) +
-  facet_wrap(.~delay) +
-  theme_classic() +
-  labs(x = "Test Frequency (weekly)",
-       y = "Expected cases",
-       col = "Delta Variant",
-       title = "Delta variant sensitivity analysis across test delay")
