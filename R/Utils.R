@@ -110,8 +110,8 @@ test_workers <- function(test_indices, workers, timestep, test_thresh = 0, test_
           # If imperfect test sensitivity, check for false negative then assign state as tested if true positive, remain I if false negative
           if(test_sens < 1){
             FN <- rbinom(1, 1, 1-test_sens)
-            new_state <- ifelse(FN == 1, "T", "I")
-            new_delay <- ifelse(FN == 1, delay, 0)
+            new_state <- ifelse(FN == 1, "I", "T")
+            new_delay <- ifelse(FN == 1, 0, delay)
             
             workers[[worker]]$state[timestep] <- new_state
             workers[[worker]]$delay <- new_delay
