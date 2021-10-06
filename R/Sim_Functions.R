@@ -340,7 +340,11 @@ generate_workers_leaky_random <- function(n_workers, sim_t, inf_pars_fx, schedul
 }
 
 # Simulate transmission given parameters, time characteristics, and workers
-sim_work_transmission <- function(Lambda, R_work, R, delay, test_thresh, test_sens, test_spec, workers, sim_t, dt, symps = FALSE, p_symp = 0.8, p_selfiso = 1, verbose = FALSE){
+sim_work_transmission <- function(Lambda, R_work, R, delay, 
+                                  test_thresh, test_sens, test_spec, 
+                                  workers, sim_t, dt, 
+                                  symps = FALSE, p_symp = 0.8, p_selfiso = 1, 
+                                  verbose = FALSE){
   
   inf_days  <- numeric(sim_t)
   exp_cases <- numeric(sim_t)
@@ -400,6 +404,7 @@ sim_work_transmission <- function(Lambda, R_work, R, delay, test_thresh, test_se
     if(symps){
       for(i in which(states_updated == "I")){
         # Assume that symptoms start at time of peak infectiousness and that workers who self isolate do so upon symptom onset
+        # Workers who will self isolate are pre-determined below based on p_symp and p_selfiso variables when new infections are generated
         if(workers[[i]]$selfiso == 1 & workers[[i]]$t_infect >= which.max(workers[[i]]$infectiousness)){
           workers[[i]]$state[t] <- "Q"
         } 
