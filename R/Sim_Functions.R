@@ -340,7 +340,7 @@ generate_workers_leaky_random <- function(n_workers, sim_t, inf_pars_fx, schedul
 }
 
 # Simulate transmission given parameters, time characteristics, and workers
-sim_work_transmission <- function(Lambda, R_work, R, delay, 
+sim_work_transmission <- function(Lambda, Reff, delay, 
                                   test_thresh, test_sens, test_spec, 
                                   workers, sim_t, dt, 
                                   symps = FALSE, p_symp = 0.8, p_selfiso = 1, 
@@ -348,12 +348,13 @@ sim_work_transmission <- function(Lambda, R_work, R, delay,
   
   inf_days  <- numeric(sim_t)
   exp_cases <- numeric(sim_t)
+  adj_cases <- numeric(sim_t)
   tests_adm <- numeric(sim_t)
   
   for(t in 2:sim_t){
     # Advance infections ----------
     states       <- unlist(lapply(workers, function(w) w$state[t-1]))
-    infecteds    <- which(states %in% c("E", "I", "T", "Q"))
+    infecteds    <- which(states %in% c("E", "I", "T", "O"))
     
     for(i in infecteds){
       # Advance time infected
@@ -394,8 +395,9 @@ sim_work_transmission <- function(Lambda, R_work, R, delay,
     for(i in which(states_updated == "T")){
       workers[[i]]$delay <- workers[[i]]$delay - 1
       if(workers[[i]]$delay <= 0){
-        workers[[i]]$state[t] <- "Q"
-        # Workers who are isolated after testing positive not tested for 90 days per guidance
+        workers[[i]]$state[t] <- "O"
+        # Workers after testing positive isolated for 10 days and not tested for 90 days per guidance
+        workers[[i]]$work_schedule[t:max(c(t+10*(1/dt), sim_t))] <- 0 
         workers[[i]]$test_schedule[t:max(c(t+90*(1/dt), sim_t))] <- 0 
       }
     }
@@ -406,22 +408,23 @@ sim_work_transmission <- function(Lambda, R_work, R, delay,
         # Assume that symptoms start at time of peak infectiousness and that workers who self isolate do so upon symptom onset
         # Workers who will self isolate are pre-determined below based on p_symp and p_selfiso variables when new infections are generated
         if(workers[[i]]$selfiso == 1 & workers[[i]]$t_infect >= which.max(workers[[i]]$infectiousness)){
-          workers[[i]]$state[t] <- "Q"
+          workers[[i]]$state[t] <- "O"
         } 
       }
     }
     
     # New infections ------------
     # Determine who's working and infectious
-    working <- which(unlist(lapply(workers, function(w) w$work_schedule[t])) == 1)
-    infectors_t  <- which(states_updated %in% c("I", "T")) # Workers infectious or waiting on test will transmit
-    inf_work_t   <- unlist(lapply(infectors_t, function(i) workers[[i]]$work_schedule[t]))
-    infectious_t <- unlist(lapply(infectors_t, function(i) workers[[i]]$infectiousness[workers[[i]]$t_infect]))
+    working            <- which(unlist(lapply(workers, function(w) w$work_schedule[t])) == 1)
+    states_working     <- states_updated[working]
+    infectors_t        <- which(states_updated %in% c("I", "T")) # Workers infectious or waiting on test will transmit
+    inf_work_t         <- unlist(lapply(infectors_t, function(i) workers[[i]]$work_schedule[t])) # binary of infectious who are scheduled to work
+    infectious_t       <- unlist(lapply(infectors_t, function(i) workers[[i]]$infectiousness[workers[[i]]$t_infect])) # infectiousness on current work shift
     
     # FOIs
     Lambda_it          <- rep(Lambda*dt, length(workers))                     # Community infectivity
-    Lambda_it[working] <- sum(inf_work_t*infectious_t*R_work)/length(working) # Workplace infectivity for those working. 
-    # beta*I/N except beta*I is weighted by infectiousness and determined by workplace transmission, R_work
+    Lambda_it[working] <- sum(inf_work_t*infectious_t*Reff)/sum(states_working != "O") # Workplace infectivity for those working. 
+    # beta*I/N except beta*I is weighted by infectiousness and determined by workplace transmission, Reff
     
     # Bernoulli trials determine who is exposed, become infected if exposed and susceptible
     bernoullis <- rbinom(length(workers),1,Lambda_it)
@@ -458,22 +461,25 @@ sim_work_transmission <- function(Lambda, R_work, R, delay,
     inf_work_t   <- unlist(lapply(infectors_t, function(i) workers[[i]]$work_schedule[t]))
     infectious_t <- unlist(lapply(infectors_t, function(i) workers[[i]]$infectiousness[workers[[i]]$t_infect]))
     
+    states_fin <- unlist(lapply(workers, function(w) w$state[t]))
+    
     if(verbose){
-      states_fin <- unlist(lapply(workers, function(w) w$state[t]))
       
       cat("S -", sum(states_fin=="S"), "  ",
           "E -", sum(states_fin=="E"), "  ",
           "I -", sum(states_fin=="I"), "  ",
           "T -", sum(states_fin=="T"), "  ",
-          "Q -", sum(states_fin=="Q"), "  ",
+          "O -", sum(states_fin=="O"), "  ",
           "R -", sum(states_fin=="R"), "\n")
     }
     
-    exp_cases[t] <- sum(inf_work_t*infectious_t*R)
-    inf_days[t]  <- sum(inf_work_t*infectious_t*R > 0)
-  }
+  exp_cases[t] <- sum(inf_work_t*infectious_t*R)
+  adj_cases[t] <- exp_cases[t] * sum(states_fin[working]=="S")/sum(states_fin[working]!="O") # Adjusted for susceptible depletion
+  inf_days[t]  <- sum(inf_work_t*infectious_t*R > 0)
+}
   
   out_cases_tests <- tibble("exp_cases" = exp_cases,
+                            "adj_cases" = adj_cases,
                             "inf_days"  = inf_days,
                             "tests_adm" = tests_adm,
                             "time"      = 1:sim_t)
