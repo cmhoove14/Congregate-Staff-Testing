@@ -7,7 +7,7 @@ library(tidyverse)
 
 source("Analysis/0-Sim_Setup.R")
 source("R/Utils.R")
-sims_end <- readRDS("data/sims_end_totals.RDS")
+load(here::here("data/sim_results_processed.RData"))
 
 # Plot of all four metrics in base scenario with all testing strategies---------------------------
 sims_sum_ggplot %>% 
@@ -198,20 +198,32 @@ dow_sums <- dow_sims %>%
                             R == R2 ~ paste0("R = ", R2),
                             R == R3 ~ paste0("R = ", R3)))
 
+rand_dow_comp <- sims_sum_ggplot %>% 
+  filter(work_sched == "leaky",
+         delay == 0,
+         testsys == "random",
+         testfreq == 1,
+         measure %in% unique(dow_sums$measure)) %>% 
+  mutate(testday = "R") %>% 
+  dplyr::select(all_of(colnames(dow_sums)))
+
 
 dow_sums %>% 
-  filter(measure == "Transmissions", testfreq == 1, R == R2) %>% 
+  mutate(testday = as.character(testday)) %>% 
+  bind_rows(rand_dow_comp) %>% #View()
+  filter(measure == "Transmissions",  
+         R == R2, 
+         `Community Prevalence` == "0.5%",
+         testfreq == 1) %>% 
   ggplot(aes(x = testday,
              y = Med,
              ymin = q25,
-             ymax = q75,
-             shape = work_sched)) +
+             ymax = q75)) +
   geom_point(position = position_dodge(0.5)) +
   geom_errorbar(width = 0.1, position = position_dodge(0.5)) +
   theme_classic() +
-  facet_wrap(.~`Community Prevalence`) +
-  scale_color_manual(values = c("darkred",
-                                "navy")) +
+  #facet_grid(`Rlab`~`Community Prevalence`, scales = "free_y") +
+  #scale_color_manual(values = c("darkred", "navy")) +
   theme(strip.background = element_blank(),
         strip.text = element_text(face = "bold", size = 11),
         #strip.placement = "outside",
@@ -219,7 +231,7 @@ dow_sums %>%
         axis.title = element_text(size = 12),
         axis.text = element_text(size = 10)) +
   labs(y = "Transmissions",
-       x = "Systematic Test Day",
+       x = "Test Day",
        shape = "Schedule Type")
 
 ggsave(here::here("Plots/sim_results_systematic_1pweek_DayOfWeek.png"),
