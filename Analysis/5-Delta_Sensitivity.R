@@ -80,6 +80,7 @@ stopCluster(clooster)
 sims_end <- all_sims %>% 
   group_by(sim, lambda, R, work_sched, delay, testsys, testfreq, delta) %>% 
   summarise(totcases = sum(exp_cases),
+            adjcases = sum(adj_cases),
             totdays  = sum(inf_days),
             tottests = sum(tests_adm)) %>% 
   ungroup()

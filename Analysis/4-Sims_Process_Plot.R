@@ -12,7 +12,7 @@ sims_end <- readRDS("data/sims_end_totals.RDS")
 # Summarise across all simulations for each parameter set
 sims_sum <- sims_end %>% 
   group_by(lambda, R, work_sched, delay, testsys, testfreq) %>% 
-  summarise(across(.cols = c("totcases", "totdays", "tottests"),
+  summarise(across(.cols = c("totcases", "adjcases", "totdays", "tottests"),
                    .fns  = list("median", "q_025", "q_25", "q_75", "q_975"))) %>% 
   ungroup()
 
@@ -141,7 +141,7 @@ sims_sum2 <- sims_end %>%
                           lambda == lambda3 & R == R3 & work_sched == "cohort" ~ round(tottests / (l3_R3_exp_cases_base_cohort-totcases), 2)),
          tests1000s = tottests/1000) %>% 
   group_by(lambda, R, work_sched, delay, testsys, testfreq) %>% 
-  summarise(across(.cols = c("totcases", "totdays", "tests1000s", "avoidedpertest", "ITER"),
+  summarise(across(.cols = c("totcases", "adjcases", "totdays", "tests1000s", "avoidedpertest", "ITER"),
                    .fns  = list("median", "q_25", "q_75"))) %>% 
   ungroup() %>% 
   mutate(`Test Strategy` = if_else(testsys == "systematic", "Systematic", "Random"),
@@ -184,7 +184,9 @@ sims_sum_ggplot <- sims_sum2 %>%
                                     measure == "totdays" ~ "Infectious Days",
                                     measure == "tests1000s" ~ "Tests (1000s)",
                                     measure == "totcases" ~ "Transmissions",
+                                    measure == "adjcases" ~ "Adj. Transmissions"
                                     measure == "ITER" ~ "ITER"), 
-                          levels = c("Transmissions", "Infectious Days", "Tests (1000s)", "Transmissions avoided/\n1000 tests", "ITER")))
+                          levels = c("Transmissions", "Adj. Transmissions", "Infectious Days", 
+                                     "Tests (1000s)", "Transmissions avoided/\n1000 tests", "ITER")))
 
 save.image(here::here("data/sim_results_processed.RData"))

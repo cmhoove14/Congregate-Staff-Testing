@@ -10,7 +10,7 @@ infectious_profile <- function(t_latent, t_peak, t_infectious, dt){
   dtriangle(x = seq(0, t_tot, by = dt),
             a = t_latent,
             b = t_tot,
-            c = t_peak)
+            c = t_peak)*dt
 }
 
 R_iso <- function(t_latent, t_peak, t_infectious, t_iso, R){

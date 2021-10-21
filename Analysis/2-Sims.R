@@ -117,8 +117,7 @@ all_sims <- bind_rows(parLapply(cl = clooster,
                                   workers_use <- get(workers_use_char)
                                   
                                   sim_work_transmission(Lambda    = comm_prev*dt,
-                                                        R_work    = R,
-                                                        R         = R,
+                                                        Reff    = R,
                                                         delay     = d,
                                                         test_thresh = 0,
                                                         test_spec = 1,
@@ -143,6 +142,7 @@ stopCluster(clooster)
 sims_end <- all_sims %>% 
   group_by(sim, lambda, R, work_sched, delay, testsys, testfreq) %>% 
   summarise(totcases = sum(exp_cases),
+            adjcases = sum(adj_cases),
             totdays  = sum(inf_days),
             tottests = sum(tests_adm)) %>% 
   ungroup()

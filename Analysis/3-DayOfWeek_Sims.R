@@ -84,6 +84,7 @@ stopCluster(clooster2)
 dows_end <- dow_sims %>% 
   group_by(sim, lambda, R, delay, work_sched, testsys, symps, testday, testfreq) %>% 
   summarise(totcases = sum(exp_cases),
+            adjcases = sum(adj_cases),
             totdays  = sum(inf_days),
             tottests = sum(tests_adm)) %>% 
   ungroup()

@@ -473,9 +473,9 @@ sim_work_transmission <- function(Lambda, Reff, delay,
           "R -", sum(states_fin=="R"), "\n")
     }
     
-  exp_cases[t] <- sum(inf_work_t*infectious_t*R)
+  exp_cases[t] <- sum(inf_work_t*infectious_t*Reff)
   adj_cases[t] <- exp_cases[t] * sum(states_fin[working]=="S")/sum(states_fin[working]!="O") # Adjusted for susceptible depletion
-  inf_days[t]  <- sum(inf_work_t*infectious_t*R > 0)
+  inf_days[t]  <- sum(inf_work_t*infectious_t*Reff > 0)
 }
   
   out_cases_tests <- tibble("exp_cases" = exp_cases,
