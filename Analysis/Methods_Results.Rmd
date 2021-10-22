@@ -38,11 +38,11 @@ Figure 1b shows the relationship between $\mathcal{R}_{iso}$ and $t_{iso}$ is si
 ```{r tri_examp, echo = FALSE}
 # Triangle schematic -----------------
 base_R   <- 1
-t_peak   <- 5.5
+t_peak   <- 5
 t_latent <- t_peak - 1
-t_infect <- 8.5
+t_infect <- 9
 t_tot    <- t_latent + t_infect
-dt       <- 0.1
+dt       <- 1
 
 tri <- c(infectious_profile(t_latent, t_peak, t_infect, dt),
          #Buffer with 0 at the end for plot aesthetic
@@ -55,9 +55,7 @@ t_iso <- t_peak + 2
 d_iso <- dtriangle(x = t_iso, 
                    a = t_latent,
                    b = t_tot,
-                   c = t_peak)
-
-base_R_iso <- base_R * (1-d_iso*(t_tot-t_iso)/2) # reduction equal to 1 minus area of triangle removed 
+                   c = t_peak)*dt
 
 # Plot with infectiousness removed
 tri_examp_plot <- tibble(
@@ -77,21 +75,21 @@ tri_examp_plot <- tibble(
                      limits = c(0,14)) +
   theme_classic() +
   theme(axis.text = element_text(size = 11),
-        axis.title = element_text(size = 13)) +
+        axis.title.y = element_text(size = 15),
+        axis.title.x = element_text(size = 13)) +
   labs(x   = "Days since infection",
-       y   = expression(beta[t]),
+       y   = expression(italic(r[t])),
        tag = "A")
 
 # R_iso as function of t_iso -----------------
-t_isos <- seq(0,14,0.1)
-R_isos <- sapply(t_isos, function(t){
-  R_iso(t_latent, t_peak, t_infect, t, base_R)
-})
- 
+t_isos <- seq(0,14,0.01)
+
+base_R_iso <- R_iso(t_latent, t_peak, t_infect, t_iso, base_R, 0.01)
+
 r_iso_t_iso_plot <- tibble(
   t_isos = t_isos,
   R_isos = sapply(t_isos, function(t){
-    R_iso(t_latent, t_peak, t_infect, t, base_R)
+    R_iso(t_latent, t_peak, t_infect, t, base_R,0.01)
   })
 ) %>% 
   ggplot() +
@@ -107,48 +105,6 @@ r_iso_t_iso_plot <- tibble(
          y = expression(R[iso]),
          tag = "B")
 ```
-
-```{r check_R_iso_t_iso, include = FALSE}
-d_peak <- dtriangle(x = t_peak, 
-                    a = t_latent,
-                    b = t_tot,
-                    c = t_peak)
-
-R_iso_peak <- base_R * (1-d_peak*(t_tot-t_peak)/2) # reduction equal to 1 minus area of triangle removed 
-
-t_sooner <- t_latent+(t_peak-t_latent)/2
-d_sooner <- dtriangle(x = t_sooner, 
-                      a = t_latent,
-                      b = t_tot,
-                      c = t_peak)
-
-R_iso_sooner <- base_R * (1-d_peak*(t_tot-t_peak)/2 - (d_peak+d_sooner)*(t_peak - t_sooner)/2) # reduction equal to 1 minus area of triangle removed minus area of trapezoid removed
-
-tibble(
-  t_isos = t_isos,
-  R_isos = sapply(t_isos, function(t){
-    R_iso(t_latent, t_peak, t_infect, t, base_R)
-  })
-) %>% 
-  ggplot() +
-    geom_line(aes(x = t_isos, y = R_isos)) +
-    geom_point(data = tibble(x = t_iso, y = base_R_iso),
-               aes(x = x, y = y),
-               col = "red", size = 2) +
-    geom_point(data = tibble(x = t_peak, y = R_iso_peak),
-               aes(x = x, y = y),
-               col = "purple", size = 2) +
-    geom_point(data = tibble(x = t_sooner, y = R_iso_sooner),
-               aes(x = x, y = y),
-               col = "green", size = 2) +
-    theme_classic() +
-    theme(axis.text = element_text(size = 11),
-          axis.title = element_text(size = 13)) +
-    scale_x_continuous(breaks = seq(1,15,by=2)) +
-    labs(x = expression(t[iso]),
-         y = expression(R[iso]))
-```
-
 
 ```{r save_triangle, eval = FALSE, include = FALSE, echo = FALSE}
 tri_examp_plot
@@ -355,7 +311,7 @@ Testing frequency and delay can also be incorporated into estimation of $\mathca
 
 Figure 1c shows distributions of $R_{iso}$ derived from 100 random draws sampling from uncertainty in the SARS-CoV2 latent, peak, and total infectious periods, across test frequencies ranging from daily ($f=7$) to biweekly ($f=0.5$) and test delays from 0 to 2 days. These results again reiterate the importance of reducing test delays, as $\mathcal{R}_{iso}$ is similar when testing every day ($f=7$) with a two-day turnaround time for test results ($d=2$) vs testing twice per week ($f=2$) with immediate test results ($d=0$) (fig 1c, median $\mathcal{R}_{iso}(d=0,f=2)=$ `r round(median(R_iso_test_freqs$R_isos[which(R_iso_test_freqs$delay == 0 & R_iso_test_freqs$t_freq == test_freqs[2])]), digits = 2)` and $\mathcal{R}_{iso}(d=2,f=7)=$ `r round(median(R_iso_test_freqs$R_isos[which(R_iso_test_freqs$delay == 2 & R_iso_test_freqs$t_freq == test_freqs[1])]), digits = 2)`, respectively).
 
-```{r mod_schematic_plot, echo = FALSE, include = TRUE, fig.width=8, fig.height=6, fig.cap="**Figure 1. SARS-CoV2 infectiousness profile and relation between transmission, test frequency, and test delays.**"}
+```{r mod_schematic_plot, echo = FALSE, include = TRUE, fig.width=8, fig.height=6, fig.cap="**Figure 1. Analytic framework exploring effects of variable infectiousness through time, testing frequencies, and delays on SARS-CoV-2 transmission.**"}
 
 # Four panels with patchwork
 (tri_examp_plot / r_iso_t_iso_plot / exp_R_iso_t_freq_plot) | p_iso_t_freq_plot 
@@ -365,7 +321,7 @@ ggsave(here::here("Plots/Framework_Analysis.png"),
 ```
 
 *[Fig 1 caption continued]*  
-A) Example infectiousness profile for $\mathcal{R}=1$, $t_{latent}=$ `r t_latent`, $t_{incubation}=$ `r t_peak`, $t_{infectious}=$ `r t_infect`, with shaded area demonstrating infectiousness slice removed if isolation occurs at two days after symptom onset, $t_{iso}=$ `r t_iso`, leading to $\mathcal{R}_{iso}=$ `r round(base_R_iso, 2)`. B) $\mathcal{R}_{iso}$ as a function of $t_{iso}$ with same parameters as in A and point indicating scenario depicted in A. C)  Boxplots showing distributions of $\mathcal{R}_{iso}$ as a function of testing frequency, $f$, and test delay, $d$, incorporating uncertainty in $t_{latent}$, $t_{incubation}$, and $t_{infectious}$ by drawing $n=100$ parameter sets for each, with baseline $\mathcal{R}=1$. Boxplots indicate median and interquartile range. D) Relationship between testing frequency, $f$, test delay, $d$, and probability isolation occurs by day $t$, i.e. $t_{iso}\leq \tau$, demonstrating that delays in testing substantially reduce the probability of prompt isolation, particularly in more frequent testing scenarios.  
+A) Example infectiousness profile for $\mathcal{R}=1$, $t_{latent}=$ `r t_latent`, $t_{incubation}=$ `r t_peak`, $t_{infectious}=$ `r t_infect`, with line indicating infectiousness ($r_t$) through time and shaded area demonstrating infectiousness slice removed if isolation occurs at two days after symptom onset, $t_{iso}=$ `r t_iso`, leading to $\mathcal{R}_{iso}=$ `r round(base_R_iso, 2)`. B) $\mathcal{R}_{iso}$ as a function of $t_{iso}$ with same parameters as in A and point indicating scenario depicted in A. C)  Boxplots showing distributions of $\mathcal{R}_{iso}$ as a function of testing frequency, $f$, and test delay, $d$, incorporating uncertainty in $t_{latent}$, $t_{incubation}$, and $t_{infectious}$ by drawing $n=100$ parameter sets for each, with baseline $\mathcal{R}=1$. Boxplots indicate median and interquartile range. D) Relationship between testing frequency, $f$, test delay, $d$, and probability isolation occurs by day $t$, i.e. $t_{iso}\leq \tau$, demonstrating that delays in testing substantially reduce the probability of prompt isolation, particularly in more frequent testing scenarios.  
 
 ## Individual-based model simulations   
 
@@ -392,21 +348,34 @@ Tests were most often administered on Tuesdays (if the staff had Tuesday in thei
 
 [Figure 2]  
 
-**Figure 2. California Department of Corrections and Rehabilitation custody staff and testing schedules.** Four typical weekly work schedules (y-axis) were identified among CDCR custody staff. These include a Monday to Thursday workweek ($n=5969$ staff), a Thursday to Sunday workweek ($n=6180$ staff), a Tuesday to Saturday workweek ($n=9243$ staff), and a Tuesday to Saturday workweek ($n=6936$ staff). The red shading shows the mean proportion of staff workdays that consist of a particular day of the week (x-axis; i.e. darker shades of red indicate that staff with the specified schedule very commonly work on that day). The size of the black circles represents the mean proportion of the total number of tests administered to each group that were given on the specified day.
+```{r staff_numbers}
+n_staff_MR <- 5969
+n_staff_RU <- 6180
+n_staff_TS <- 9243
+n_staff_ST <- 6936
+
+n_staff_tot <- n_staff_MR + n_staff_RU + n_staff_TS + n_staff_ST
+
+per_MR <- round(n_staff_MR/n_staff_tot, 2)
+per_RU <- round(n_staff_RU/n_staff_tot, 2)
+per_TS <- round(n_staff_TS/n_staff_tot, 2)
+per_ST <- round(n_staff_ST/n_staff_tot, 2)
+```
+
+
+**Figure 2. Staff working and testing schedules.** Four typical weekly work schedules (y-axis) were identified among CDCR custody staff. These include a Monday to Thursday workweek (`r per_MR*100`% staff), a Thursday to Sunday workweek (`r per_RU*100`% staff), a Tuesday to Saturday workweek (`r per_TS*100`% staff), and a Saturday to Tuesday workweek (`r per_ST*100`% staff). The red shading shows the mean proportion of staff workdays that consist of a particular day of the week (x-axis; i.e. darker shades of red indicate that staff with the specified schedule very commonly work on that day). The size of the black circles represents the mean proportion of the total number of tests administered to each group that were given on the specified day.
 
 ## Simulation Results  
 ```{r load_sim_results}
 load(here::here("data/sim_results_processed.RData"))
 
-sims_sum_ggplot <- sims_sum_ggplot %>% 
-  mutate(commprev = `Community Prevalence`)
 ```
 
-Systematic testing strategies were found to consistently outperform random testing strategies in terms of preventing infections within simulated facilities. Figure 3 shows a comparison of the number of infections generated ($\mathcal{I}^{tot}_{sim}$) when implementing random vs systematic testing strategies across testing frequencies, community prevalences, and within-facility $\mathcal{R}$ with either no delay or a one day delay between test administration and result disclosure. In the highest transmission scenario ($CP=1\%, \mathcal{R}=1.5$), no testing led to a median $\mathcal{I}^{tot}_{sim}=$ `r round(sims_sum2 %>% filter(testfreq == 0, work_sched == "leaky", delay == 0, R == 1.5, lambda == lambda3) %>% pull(totcases_1), 2)` (IQR `r round(sims_sum2 %>% filter(testfreq == 0, work_sched == "leaky", delay == 0, R == 1.5, lambda == lambda3) %>% pull(totcases_2), 2)` - `r round(sims_sum2 %>% filter(testfreq == 0, work_sched == "leaky", delay == 0, R == 1.5, lambda == lambda3) %>% pull(totcases_3), 2)`). Testing randomly once per week resulted in a median $\mathcal{I}^{tot}_{sim}=$ `r round(sims_sum2 %>% filter(testfreq == 1, work_sched == "leaky", delay == 0, R == 1.5, lambda == lambda3, testsys == "random") %>% pull(totcases_1), 2)` (IQR `r round(sims_sum2 %>% filter(testfreq == 1, work_sched == "leaky", delay == 0, R == 1.5, lambda == lambda3, testsys == "random") %>% pull(totcases_2), 2)` - `r round(sims_sum2 %>% filter(testfreq == 1, work_sched == "leaky", delay == 0, R == 1.5, lambda == lambda3, testsys == "random") %>% pull(totcases_3), 2)`), whereas testing systematically on the first day of the work week resulted in $\mathcal{I}^{tot}_{sim}=$ `r round(sims_sum2 %>% filter(testfreq == 1, work_sched == "leaky", delay == 0, R == 1.5, lambda == lambda3, testsys == "systematic") %>% pull(totcases_1), 2)` (IQR `r round(sims_sum2 %>% filter(testfreq == 1, work_sched == "leaky", delay == 0, R == 1.5, lambda == lambda3, testsys == "systematic") %>% pull(totcases_2), 2)` - `r round(sims_sum2 %>% filter(testfreq == 1, work_sched == "leaky", delay == 0, R == 1.5, lambda == lambda3, testsys == "systematic") %>% pull(totcases_3), 2)`; Fig 3, right panel in pink). However, systematic testing that is accompanied by a one day delay leads to $\mathcal{I}^{tot}_{sim}=$ `r round(sims_sum2 %>% filter(testfreq == 1, work_sched == "leaky", delay == 1, R == 1.5, lambda == lambda3, testsys == "systematic") %>% pull(totcases_1), 2)` (IQR `r round(sims_sum2 %>% filter(testfreq == 1, work_sched == "leaky", delay == 1, R == 1.5, lambda == lambda3, testsys == "systematic") %>% pull(totcases_2), 2)` - `r round(sims_sum2 %>% filter(testfreq == 1, work_sched == "leaky", delay == 1, R == 1.5, lambda == lambda3, testsys == "systematic") %>% pull(totcases_3), 2)`).
+Systematic testing strategies were found to consistently outperform random testing strategies in terms of preventing infections within simulated facilities. Figure 3 shows a comparison of the number of infections generated ($\mathcal{I}^{tot}_{sim}$) when implementing random vs systematic testing strategies across testing frequencies, levels of community prevalence, and within-facility $\mathcal{R}$ with either no delay or a one day delay between test administration and isolation of infectious workers. In the highest transmission scenario ($CP=1\%, \mathcal{R}=1.5$), no testing led to a median $\mathcal{I}^{tot}_{sim}=$ `r round(sims_sum2 %>% filter(testfreq == 0, work_sched == "leaky", delay == 0, R == 1.5, lambda == lambda3) %>% pull(totcases_1), 2)` (IQR `r round(sims_sum2 %>% filter(testfreq == 0, work_sched == "leaky", delay == 0, R == 1.5, lambda == lambda3) %>% pull(totcases_2), 2)` - `r round(sims_sum2 %>% filter(testfreq == 0, work_sched == "leaky", delay == 0, R == 1.5, lambda == lambda3) %>% pull(totcases_3), 2)`). Testing randomly once per week with no delay to isolation resulted in a median $\mathcal{I}^{tot}_{sim}=$ `r round(sims_sum2 %>% filter(testfreq == 1, work_sched == "leaky", delay == 0, R == 1.5, lambda == lambda3, testsys == "random") %>% pull(totcases_1), 2)` (IQR `r round(sims_sum2 %>% filter(testfreq == 1, work_sched == "leaky", delay == 0, R == 1.5, lambda == lambda3, testsys == "random") %>% pull(totcases_2), 2)` - `r round(sims_sum2 %>% filter(testfreq == 1, work_sched == "leaky", delay == 0, R == 1.5, lambda == lambda3, testsys == "random") %>% pull(totcases_3), 2)`; Fig 3 right panel, rightmost yellow circle), whereas testing systematically on the first day of the work week resulted in $\mathcal{I}^{tot}_{sim}=$ `r round(sims_sum2 %>% filter(testfreq == 1, work_sched == "leaky", delay == 0, R == 1.5, lambda == lambda3, testsys == "systematic") %>% pull(totcases_1), 2)` (IQR `r round(sims_sum2 %>% filter(testfreq == 1, work_sched == "leaky", delay == 0, R == 1.5, lambda == lambda3, testsys == "systematic") %>% pull(totcases_2), 2)` - `r round(sims_sum2 %>% filter(testfreq == 1, work_sched == "leaky", delay == 0, R == 1.5, lambda == lambda3, testsys == "systematic") %>% pull(totcases_3), 2)`; Fig 3 right panel, rightmost yellow square). However, systematic testing that is accompanied by a one day delay leads to $\mathcal{I}^{tot}_{sim}=$ `r round(sims_sum2 %>% filter(testfreq == 1, work_sched == "leaky", delay == 1, R == 1.5, lambda == lambda3, testsys == "systematic") %>% pull(totcases_1), 2)` (IQR `r round(sims_sum2 %>% filter(testfreq == 1, work_sched == "leaky", delay == 1, R == 1.5, lambda == lambda3, testsys == "systematic") %>% pull(totcases_2), 2)` - `r round(sims_sum2 %>% filter(testfreq == 1, work_sched == "leaky", delay == 1, R == 1.5, lambda == lambda3, testsys == "systematic") %>% pull(totcases_3), 2)`; Fig 3 right panel, rightmost yellow cross). Across all transmission scenarios, biweekly systematic testing with no delay to isolation averted an average of `r round(mean(sims_sum2 %>% filter(testfreq == 0.5, work_sched == "leaky", delay == 0, testsys == "systematic") %>% pull(peravoided)), 2)*100`% of transmissions that would have occurred with no testing, while random testing averted an average of `r round(mean(sims_sum2 %>% filter(testfreq == 0.5, work_sched == "leaky", delay == 0, testsys == "random") %>% pull(peravoided)), 2)*100`% of transmissions. For weekly frequency, systematic testing averted an average of `r round(mean(sims_sum2 %>% filter(testfreq == 1, work_sched == "leaky", delay == 0, testsys == "systematic") %>% pull(peravoided)), 2)*100`% of transmissions versus `r round(mean(sims_sum2 %>% filter(testfreq == 1, work_sched == "leaky", delay == 0, testsys == "random") %>% pull(peravoided)), 2)*100`% of transmissions when testing randomly; and for twice weekly testing, systematic testing averted and average of `r round(mean(sims_sum2 %>% filter(testfreq == 2, work_sched == "leaky", delay == 0, testsys == "systematic") %>% pull(peravoided)), 2)*100`% of transmissions versus `r round(mean(sims_sum2 %>% filter(testfreq == 2, work_sched == "leaky", delay == 0, testsys == "random") %>% pull(peravoided)), 2)*100`% of transmissions when testing randomly.
 
 The horizontal gray line in figure 3 demonstrates a potential threshold number of infections to avoid exceeding at $\mathcal{I}^{tot}_{sim}=18$. This threshold corresponds to an average of 1 transmission event within the simulated facility every ten days. Implementing a systematic--rather than random--testing strategy can be sufficient to prevent $\mathcal{I}^{tot}_{sim}$ from exceeding such a threshold without changing the frequency in many transmission scenarios (e.g. compare circles to squares and of the same color inf figure 3) though in the highest transmission scenarios, greater than twice-weekly testing may be needed. Table 2 additionally shows the testing frequency in tests per week under a systematic testing strategy necessary to ensure that the upper quartile of expected transmission events is maintained below this threshold.
 
-```{r sim_results, include = TRUE, fig.width=6, fig.height=5, fig.cap="**Figure 3. Number of expected infections generated in a facility from model simulations comparing random and systematic testing strategies across transmission scenarios, test frequencies, and test delays**. Systematic testing strategies ([squares], [crosses]) prevent more infections than random strategies ([circles], [triangles]) across all transmission scenarios and test frequencies. More infections are expected in transmission scenarios with higher within facility $\\mathcal{R}$ and higher community prevalence. Preventing test delays (squares compared to crosses and triangles compared to circles) and increasing test frequency (red=lowest frequency, blue=highest frequency) also reduces the number of infections. The horizontal gray line serves as a reference to assess the testing frequency needed to maintain $\\mathcal{I}^{tot}_{sim}\\leq18$ (corresponding to one transmission event every ten days) across different transmission scenarios. Error bars represent the interquartile range of $\\mathcal{I}^{tot}_{sim}$ derived from 100 simulations per scenario."}
+```{r sim_results, include = TRUE, fig.width=7, fig.height=5, fig.cap="**Figure 3. Number of expected infections generated in a facility from model simulations comparing random and systematic testing strategies across transmission scenarios, test frequencies, and test delays**. Systematic testing strategies ([squares], [crosses]) prevent more infections than random strategies ([circles], [triangles]) across all transmission scenarios and test frequencies. More infections are expected in transmission scenarios with higher within facility $\\mathcal{R}$ and higher community prevalence. Preventing test delays (squares compared to crosses and triangles compared to circles) and increasing test frequency (red=lowest frequency, blue=highest frequency) also reduces the number of infections. The horizontal gray line serves as a reference to assess the testing frequency needed to maintain $\\mathcal{I}^{tot}_{sim}\\leq18$ (corresponding to one transmission event every ten days) across different transmission scenarios. Error bars represent the interquartile range of $\\mathcal{I}^{tot}_{sim}$ derived from 100 simulations per scenario."}
 thresh  <-  days/10
 
 sims_sum_ggplot %>% 
@@ -438,6 +407,9 @@ sims_sum_ggplot %>%
           axis.text = element_text(size = 10)) +
     labs(y = expression(bold(I[" sim"]^" tot")),
          shape = "Test Strategy &\nDelay")
+
+ggsave(here::here("Plots/Fig3_expected_transmissions.png"),
+       units = "in", height = 5, width = 7)
 ```
 
 ```{r rec_table, include = TRUE}
@@ -457,9 +429,9 @@ sims_sum_ggplot %>%
 ```
 
 
-An alternative threshold approach to aid decision-making, particularly in resource-constrained settings, is the ITER. Figure 4 shows estimates of the ITER across transmission scenarios, test strategies, and test frequencies. In the highest transmission scenario ($\mathcal{R}=1.5$, $1\%$ community prevalence), testing systematically on the first day of every other work week with no delay ($f=0.5, d=0$, fig 4 squares) leads to $ITER=$ `r round(sims_sum_ggplot %>% filter(measure == "ITER", work_sched == "leaky", testsys == "systematic", delay ==0, testfreq == 0.5, commprev == "1%", R == 1.5) %>% pull(Med), 2)` (IQR `r round(sims_sum_ggplot %>%  filter(measure == "ITER", work_sched == "leaky", testsys == "systematic", delay ==0, testfreq == 0.5, commprev == "1%", R == 1.5) %>% pull(q25), 2)` - `r round(sims_sum_ggplot %>%  filter(measure == "ITER", work_sched == "leaky", testsys == "systematic", delay ==0, testfreq == 0.5, commprev == "1%", R == 1.5) %>% pull(q75), 2)`), while increasing test frequency to weekly ($f=1$) results in $ITER=$ `r round(sims_sum_ggplot %>% filter(measure == "ITER", work_sched == "leaky", testsys == "systematic", delay ==0, testfreq == 1, commprev == "1%", R == 1.5) %>% pull(Med), 2)` (IQR `r round(sims_sum_ggplot %>%  filter(measure == "ITER", work_sched == "leaky", testsys == "systematic", delay ==0, testfreq == 1, commprev == "1%", R == 1.5) %>% pull(q25), 2)` - `r round(sims_sum_ggplot %>%  filter(measure == "ITER", work_sched == "leaky", testsys == "systematic", delay ==0, testfreq == 1, commprev == "1%", R == 1.5) %>% pull(q75), 2)`), to twice weekly ($f=2$): $ITER=$ `r round(sims_sum_ggplot %>% filter(measure == "ITER", work_sched == "leaky", testsys == "systematic", delay ==0, testfreq == 2, commprev == "1%", R == 1.5) %>% pull(Med), 2)` (IQR `r round(sims_sum_ggplot %>%  filter(measure == "ITER", work_sched == "leaky", testsys == "systematic", delay ==0, testfreq == 2, commprev == "1%", R == 1.5) %>% pull(q25), 2)` - `r round(sims_sum_ggplot %>%  filter(measure == "ITER", work_sched == "leaky", testsys == "systematic", delay ==0, testfreq == 2, commprev == "1%", R == 1.5) %>% pull(q75), 2)`), and to every shift ($f=4$): $ITER=$ `r round(sims_sum_ggplot %>% filter(measure == "ITER", work_sched == "leaky", testsys == "systematic", delay ==0, testfreq == 4, commprev == "1%", R == 1.5) %>% pull(Med), 2)` (IQR `r round(sims_sum_ggplot %>%  filter(measure == "ITER", work_sched == "leaky", testsys == "systematic", delay ==0, testfreq == 4, commprev == "1%", R == 1.5) %>% pull(q25), 2)` - `r round(sims_sum_ggplot %>%  filter(measure == "ITER", work_sched == "leaky", testsys == "systematic", delay ==0, testfreq == 4, commprev == "1%", R == 1.5) %>% pull(q75), 2)`). These values approximately correspond to test positivity rates of `r paste0(round(100*1/sims_sum_ggplot %>% filter(measure == "ITER", work_sched == "leaky", testsys == "systematic", delay ==0, testfreq == 0.5, commprev == "1%", R == 1.5) %>% pull(Med), 2), "%")`, `r paste0(round(100*1/sims_sum_ggplot %>% filter(measure == "ITER", work_sched == "leaky", testsys == "systematic", delay ==0, testfreq == 1, commprev == "1%", R == 1.5) %>% pull(Med), 2), "%")`, `r paste0(round(100*1/sims_sum_ggplot %>% filter(measure == "ITER", work_sched == "leaky", testsys == "systematic", delay ==0, testfreq == 2, commprev == "1%", R == 1.5) %>% pull(Med), 2), "%")`, and `r paste0(round(100*1/sims_sum_ggplot %>% filter(measure == "ITER", work_sched == "leaky", testsys == "systematic", delay ==0, testfreq == 4, commprev == "1%", R == 1.5) %>% pull(Med), 2), "%")` due to the interpretation of the ITER as the number of tests per positive result. It is also clear from figure 4 that testing frequency has the most influence on the $ITER$ within th same transmission scenario, with minimal differences between test strategies and delays. Figure 4 also provides an example reference line at $ITER=400$, corresponding to an approximate $0.25\%$ test positivity, to demonstrate how testing frequency may be determined from the transmission scenario and target ITER, which may be influenced by the number of tests available.
+An alternative threshold approach to aid decision-making, particularly in resource-constrained settings, is the ITER. Figure 4 shows estimates of the ITER across transmission scenarios, test strategies, and test frequencies. In the highest transmission scenario ($\mathcal{R}=1.5$, $1\%$ community prevalence), testing systematically on the first day of every other work week with no delay ($f=0.5, d=0$, fig 4 squares) leads to $ITER=$ `r round(sims_sum_ggplot %>% filter(measure == "ITER", work_sched == "leaky", testsys == "systematic", delay ==0, testfreq == 0.5, commprev == 0.01, R == 1.5) %>% pull(Med), 2)` (IQR `r round(sims_sum_ggplot %>%  filter(measure == "ITER", work_sched == "leaky", testsys == "systematic", delay ==0, testfreq == 0.5, commprev == 0.01, R == 1.5) %>% pull(q25), 2)` - `r round(sims_sum_ggplot %>%  filter(measure == "ITER", work_sched == "leaky", testsys == "systematic", delay ==0, testfreq == 0.5, commprev == 0.01, R == 1.5) %>% pull(q75), 2)`), while increasing test frequency to weekly ($f=1$) results in $ITER=$ `r round(sims_sum_ggplot %>% filter(measure == "ITER", work_sched == "leaky", testsys == "systematic", delay ==0, testfreq == 1, commprev == 0.01, R == 1.5) %>% pull(Med), 2)` (IQR `r round(sims_sum_ggplot %>%  filter(measure == "ITER", work_sched == "leaky", testsys == "systematic", delay ==0, testfreq == 1, commprev == 0.01, R == 1.5) %>% pull(q25), 2)` - `r round(sims_sum_ggplot %>%  filter(measure == "ITER", work_sched == "leaky", testsys == "systematic", delay ==0, testfreq == 1, commprev == 0.01, R == 1.5) %>% pull(q75), 2)`), to twice weekly ($f=2$): $ITER=$ `r round(sims_sum_ggplot %>% filter(measure == "ITER", work_sched == "leaky", testsys == "systematic", delay ==0, testfreq == 2, commprev == 0.01, R == 1.5) %>% pull(Med), 2)` (IQR `r round(sims_sum_ggplot %>%  filter(measure == "ITER", work_sched == "leaky", testsys == "systematic", delay ==0, testfreq == 2, commprev == 0.01, R == 1.5) %>% pull(q25), 2)` - `r round(sims_sum_ggplot %>%  filter(measure == "ITER", work_sched == "leaky", testsys == "systematic", delay ==0, testfreq == 2, commprev == 0.01, R == 1.5) %>% pull(q75), 2)`), and to every shift ($f=4$): $ITER=$ `r round(sims_sum_ggplot %>% filter(measure == "ITER", work_sched == "leaky", testsys == "systematic", delay ==0, testfreq == 4, commprev == 0.01, R == 1.5) %>% pull(Med), 2)` (IQR `r round(sims_sum_ggplot %>%  filter(measure == "ITER", work_sched == "leaky", testsys == "systematic", delay ==0, testfreq == 4, commprev == 0.01, R == 1.5) %>% pull(q25), 2)` - `r round(sims_sum_ggplot %>%  filter(measure == "ITER", work_sched == "leaky", testsys == "systematic", delay ==0, testfreq == 4, commprev == 0.01, R == 1.5) %>% pull(q75), 2)`). These values approximately correspond to test positivity rates of `r paste0(round(100*1/sims_sum_ggplot %>% filter(measure == "ITER", work_sched == "leaky", testsys == "systematic", delay ==0, testfreq == 0.5, commprev == 0.01, R == 1.5) %>% pull(Med), 2), "%")`, `r paste0(round(100*1/sims_sum_ggplot %>% filter(measure == "ITER", work_sched == "leaky", testsys == "systematic", delay ==0, testfreq == 1, commprev == 0.01, R == 1.5) %>% pull(Med), 2), "%")`, `r paste0(round(100*1/sims_sum_ggplot %>% filter(measure == "ITER", work_sched == "leaky", testsys == "systematic", delay ==0, testfreq == 2, commprev == 0.01, R == 1.5) %>% pull(Med), 2), "%")`, and `r paste0(round(100*1/sims_sum_ggplot %>% filter(measure == "ITER", work_sched == "leaky", testsys == "systematic", delay ==0, testfreq == 4, commprev == 0.01, R == 1.5) %>% pull(Med), 2), "%")` due to the interpretation of the ITER as the number of tests per positive result. Figure 4 also provides an example reference line at $ITER=1000$, corresponding to an approximate $0.1\%$ test positivity, to demonstrate how testing frequency may be determined from the transmission scenario and target ITER, which may be influenced by the number of tests available.
 
-```{r sim_results_iter, include = TRUE, fig.width=7, fig.height=4, fig.cap="**Figure 4. Incremental test effectiveness ratio (ITER) from simulations across transmission scenarios and testing frequencies and strategies**. The ITER remains relatively low in higher transmission scenarios even at high ($f=4$) testing frequencies, potentially favoring such high-frequency testing strategies when within-facility transmission ($\\mathcal{R}$) and/or community prevalence are high. The y-axis is log-transformed and the horizontal line at $ITER=400$ is provided to aid visual comparison across scenarios. Error bars represent the interquartile range of expected infections derived from 100 simulations per scenario."}
+```{r sim_results_iter, include = TRUE, fig.width=7, fig.height=4, fig.cap="**Figure 4. Incremental test effectiveness ratio (ITER) from simulations across transmission scenarios and testing frequencies and strategies**. The ITER remains relatively low in higher transmission scenarios even at high ($f=4$) testing frequencies, potentially favoring such high-frequency testing strategies when within-facility transmission ($\\mathcal{R}$) and/or community prevalence are high. The y-axis is log-transformed and the horizontal line at $ITER=1000$ is provided to aid visual comparison across scenarios. Error bars represent the interquartile range of expected infections derived from 100 simulations per scenario."}
 sims_sum_ggplot %>% 
   mutate(`Test Frequency` = factor(case_when(`Test Frequency` == 0.5 ~ "0.5 (biweekly)",
                                              `Test Frequency` == 1 ~ "1 (weekly)",
@@ -475,10 +447,10 @@ sims_sum_ggplot %>%
              shape = `Test Strategy Delay`)) +
   geom_point(size = 1.2, position = position_dodge(1)) +
   geom_errorbar(width = 0.1, position = position_dodge(1)) +
-  geom_hline(yintercept = 400, col = "grey50", alpha = 0.5) +
+  geom_hline(yintercept = 1000, col = "grey50", alpha = 0.5) +
   facet_grid(.~Rlab, scales = "free_y", switch = "y") +
   scale_y_continuous(trans = "log", 
-                     breaks = c(25,100, 400, 800, 1600, 3200, 6400)) +
+                     breaks = c(250, 1000, 2500, 10000, 25000)) +
   scale_color_manual(values = RColorBrewer::brewer.pal(9, "PuOr")[c(1,3,7,9)]) +
   theme_classic() +
   theme(axis.title = element_text(size = 12),
@@ -488,5 +460,7 @@ sims_sum_ggplot %>%
   labs(y = "ITER",
        shape = "Test Strategy &\nDelay")
 
+ggsave(here::here("Plots/Fig4_ITER.png"),
+       units = "in", height = 4, width = 7)
 ```
 
