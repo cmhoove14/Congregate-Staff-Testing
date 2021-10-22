@@ -13,39 +13,26 @@ infectious_profile <- function(t_latent, t_peak, t_infectious, dt){
             c = t_peak)*dt
 }
 
-R_iso <- function(t_latent, t_peak, t_infectious, t_iso, R){
-  t_tot     <- t_latent + t_infectious
 
-  if(t_iso <= t_latent){
-    
+R_iso <- function(t_latent, t_peak, t_infectious, t_iso, R, dt){
+  if(t_iso < t_latent){
     R_red <- 1
-    
   } else {
+    t_tot     <- t_latent + t_infectious
     
-    d_iso <- dtriangle(x = t_iso,
+    i_tot <- dtriangle(x = seq(0, t_tot, by = dt),
                        a = t_latent,
                        b = t_tot,
-                       c = t_peak)
+                       c = t_peak)*dt
     
-    if(t_iso > t_peak){
-      
-      # Area of triangle made by t_iso
-      R_red <- d_iso*(t_tot - t_iso)/2 
-      
-    } else {
-      
-      d_peak <- dtriangle(x = t_peak,
-                          a = t_latent,
-                          b = t_tot,
-                          c = t_peak)
-      
-      # Area of triangle made by t_peak to t_tot plus area of trapezoid between t_iso and t_peak
-      R_red <- d_peak*(t_tot - t_peak)/2 + (d_iso+d_peak)*(t_peak - t_iso)/2
-      
+    if(sum(i_tot) != 1){
+      warning("Triangle probability density does not equal 1")
     }
     
+    R_red <- sum(i_tot[(t_iso/dt):(t_tot/dt)])
+    
   }
-  
+    
   return(R*(1-R_red))
 }
 

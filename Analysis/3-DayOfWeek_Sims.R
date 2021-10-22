@@ -54,8 +54,7 @@ dow_sims <- bind_rows(parLapply(cl = clooster2,
                                   workers_use <- get(workers_use_char)
                                   
                                   sim_work_transmission(Lambda    = comm_prev*dt,
-                                                        R_work    = R,
-                                                        R         = R,
+                                                        Reff    = R,
                                                         delay     = delay,
                                                         test_thresh = 0,
                                                         test_sens = 1,

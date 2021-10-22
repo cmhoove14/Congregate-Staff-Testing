@@ -53,8 +53,7 @@ all_sims <- bind_rows(parLapply(cl = clooster,
                                   workers_use <- get(workers_use_char)
                                   
                                   sim_work_transmission(Lambda    = comm_prev*dt,
-                                                        R_work    = R3,
-                                                        R         = R3,
+                                                        Reff    = R3,
                                                         delay     = d,
                                                         test_thresh = 0,
                                                         test_spec = 1,
