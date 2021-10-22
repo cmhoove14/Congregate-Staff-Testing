@@ -236,3 +236,19 @@ dow_sums %>%
 
 ggsave(here::here("Plots/sim_results_systematic_1pweek_DayOfWeek.png"),
        width = 6, height = 3, units = "in")
+
+# Plot focusing on comparing transmission estimates to transmission estimates adjusted for susceptible depletion ----------------
+sims_sum_ggplot %>% 
+  filter(R == 1, lambda == lambda2, work_sched == "leaky", delay == 0,
+         measure %in% c("Transmissions", "Adj. Transmissions")) %>% 
+  ggplot(aes(x = `Test Frequency`,
+             y = Med,
+             ymin = q25,
+             ymax = q75,
+             col = testsys,
+             shape = measure)) +
+  geom_point(position = position_dodge(0.9)) +
+  geom_errorbar(position =position_dodge(0.9), width = 0.2) +
+  theme_classic() +
+  labs(y = expression(I[tot]^"sim"))
+  
