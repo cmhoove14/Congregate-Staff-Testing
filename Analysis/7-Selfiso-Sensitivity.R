@@ -12,7 +12,11 @@ source("Analysis/0-Sim_Setup.R")
 
 set.seed(430)
 
-p_iso_sens <- rep(seq(0,1,0.1), each = n_sims)
+p_iso_sens <- expand.grid(p_selfiso  = seq(0,1,0.1),
+                          testsys    = c("systematic", "random"))
+
+sim_grid_selfiso_expand <- as.data.frame(p_iso_sens) %>% 
+  slice(rep(1:n(), each = n_sims))
 
 clooster <- makeCluster(detectCores()-1)
 
@@ -22,9 +26,16 @@ clusterEvalQ(clooster, library(tidyverse))
 clusterEvalQ(clooster, library(triangle))
 
 all_sims <- bind_rows(parLapply(cl = clooster,
-                                X = 1:length(p_iso_sens),
+                                X = 1:nrow(sim_grid_selfiso_expand),
                                 fun = function(i){
-                                  p_iso  = p_iso_sens[i]
+                                  p_iso    = sim_grid_selfiso_expand[i,1]
+                                  testsys  = sim_grid_selfiso_expand[i,2]
+                                  
+                                  workers_use_char <- ifelse(testsys == "random",
+                                                             "workers_leaky_testday1",
+                                                             "workers_leaky_testday_r1")
+                                  
+                                  workers_use <- get(workers_use_char)
 
                                   sim_work_transmission(Lambda      = lambda2*dt,
                                                         Reff        = R2,
@@ -32,7 +43,7 @@ all_sims <- bind_rows(parLapply(cl = clooster,
                                                         test_thresh = 0,
                                                         test_spec   = 1,
                                                         test_sens   = 1,
-                                                        workers     = workers_leaky_testday1,
+                                                        workers     = workers_use,
                                                         sim_t       = sim_t,
                                                         dt          = dt,
                                                         symps       = T,
@@ -44,7 +55,7 @@ all_sims <- bind_rows(parLapply(cl = clooster,
                                            R = R2,
                                            work_sched = "leaky",
                                            delay = 0,
-                                           testsys = "systematic",
+                                           testsys = testsys,
                                            testfreq = 1,
                                            delay = 0,
                                            p_selfiso = p_iso)
