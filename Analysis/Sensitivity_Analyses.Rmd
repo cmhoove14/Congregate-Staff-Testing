@@ -42,6 +42,15 @@ sens_sims_sum <- sims_end_sens %>%
                    .fns  = list("median", "q_025", "q_25", "q_75", "q_975"))) %>% 
   ungroup()
 
+# Self isolation sensitivity analysis
+sims_end_iso <- readRDS(here::here("data/selfiso_sims_end_totals.RDS"))
+
+iso_sims_sum <- sims_end_iso %>% 
+  group_by(p_selfiso, testsys) %>% 
+  summarise(across(.cols = c("totcases", "totdays", "tottests"),
+                   .fns  = list("median", "q_025", "q_25", "q_75", "q_975"))) %>% 
+  ungroup()
+
 ```
 
 ## Delta variant sensitivity analysis  
@@ -171,3 +180,14 @@ sens_sims_sum %>%
 ```
 
 There's no variability in expected cases in the absence of testing (pink lines) and decreasing cases with increasing sensitivity implying that simulations pass the smell test. What's most interesting is comparisons across test delays as these give a sense of the tradoffs between test sensitivity and test delay. For instance: weekly testing at 90% test sensitivity with no delay does about as well as biweekly testing with perfect test sensitivity and a one day delay.
+
+## Self isolation  
+```{r selfiso_plot, include=T, fig.height=6, fig.width=4, fig.cap="Expected transmissions across probability of self isolating if infection is symptomatic. The advantages of systematic testing are diminished when more people self isolate"}
+iso_sims_sum %>% 
+  ggplot(aes(x = p_selfiso, y = totcases_1, col = testsys)) +
+    geom_point() +
+    geom_errorbar(aes(ymin = totcases_3, ymax = totcases_4),
+                  width = 0.2) +
+    theme_classic()
+```
+

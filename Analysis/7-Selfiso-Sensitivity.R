@@ -31,7 +31,7 @@ all_sims <- bind_rows(parLapply(cl = clooster,
                                   p_iso    = sim_grid_selfiso_expand[i,1]
                                   testsys  = sim_grid_selfiso_expand[i,2]
                                   
-                                  workers_use_char <- ifelse(testsys == "random",
+                                  workers_use_char <- ifelse(testsys == "systematic",
                                                              "workers_leaky_testday1",
                                                              "workers_leaky_testday_r1")
                                   
