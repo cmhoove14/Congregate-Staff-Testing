@@ -1,0 +1,167 @@
+library(parallel)
+
+load("data/sim_workers.RData")
+source("R/Utils.R")
+source("R/Sim_Functions.R")
+source("Analysis/0-Sim_Setup.R")
+
+set.seed(430)
+
+sim_grid <- expand.grid(test_freq  = c(0,0.5,1,2,4),
+                        test_sys   = c("systematic", "random"),
+                        work_sched = c("leaky", "cohort"),
+                        delay      = c(0,1,2),
+                        comm_prev  = c(lambda1,lambda2,lambda3),
+                        R          = c(R1, R2, R3))
+
+# Remove redundant 
+sim_grid <- sim_grid[-which(sim_grid$test_freq == 0 & sim_grid$test_sys == "random"),]
+
+sim_grid_expand <- as.data.frame(sim_grid) %>% 
+  slice(rep(1:n(), each = n_sims))
+
+# Check to ensure sim function runs properly
+# test_sim <- sim_work_transmission(Lambda    = 0.01*dt,
+#                                   Reff      = 1,
+#                                   delay     = 0,
+#                                   test_thresh = 0,
+#                                   test_spec = 1,
+#                                   test_sens = 1, 
+#                                   workers   = workers_leaky_testday1,
+#                                   sim_t     = sim_t,
+#                                   dt        = dt,
+#                                   verbose   = F)
+
+# Check to make sure all the right worker lists are being called
+# for(i in 1:nrow(sim_grid)){
+#   test_freq  = sim_grid[i,1]
+#   test_sys   = sim_grid[i,2]
+#   work_sched = sim_grid[i,3]
+#   comm_prev  = sim_grid[i,4]
+#   R          = sim_grid[i,5]
+#
+#   if(work_sched == "leaky"){
+#     workers_use_char <- ifelse(test_sys == "systematic",
+#                                ifelse(test_freq == 0, "workers_leaky",
+#                                       ifelse(test_freq == 0.5, "workers_leaky_testday1_biweekly",
+#                                              ifelse(test_freq == 1, "workers_leaky_testday1",
+#                                                     ifelse(test_freq == 2, "workers_leaky_testday13", "workers_leaky_testday1234")))),
+#                                ifelse(test_freq == 0.5, "workers_leaky_testday_r1_biweekly",
+#                                       ifelse(test_freq == 1, "workers_leaky_testday_r1",
+#                                              ifelse(test_freq == 2, "workers_leaky_testday_r2", "workers_leaky_testday_r4"))))
+#   } else if(work_sched == "cohort"){
+#     workers_use_char <- ifelse(test_sys == "systematic",
+#                                ifelse(test_freq == 0, "workers",
+#                                       ifelse(test_freq == 0.5, "workers_testday1_biweekly",
+#                                              ifelse(test_freq == 1, "workers_testday1",
+#                                                     ifelse(test_freq == 2, "workers_testday13", "workers_testday1234")))),
+#                                ifelse(test_freq == 0.5, "workers_testday_r1_biweekly",
+#                                       ifelse(test_freq == 1, "workers_testday_r1",
+#                                              ifelse(test_freq == 2, "workers_testday_r2", "workers_testday_r4"))))
+#
+#   } else {
+#     # Will throw error below
+#     workers_use_char <- NULL
+#   }
+#   #
+#      print(workers_use_char)
+# }
+
+clooster <- makeCluster(detectCores()-1)
+
+clusterExport(clooster, varlist = ls())
+
+clusterEvalQ(clooster, library(tidyverse))
+clusterEvalQ(clooster, library(triangle))
+
+all_sims <- bind_rows(parLapply(cl = clooster,
+                                X = 1:nrow(sim_grid_expand),
+                                fun = function(i){
+                                  test_freq  = sim_grid_expand[i,1]
+                                  test_sys   = sim_grid_expand[i,2]
+                                  work_sched = sim_grid_expand[i,3]
+                                  d          = sim_grid_expand[i,4]
+                                  comm_prev  = sim_grid_expand[i,5]
+                                  R          = sim_grid_expand[i,6]
+                                  
+                                  if(work_sched == "leaky"){
+                                    workers_use_char <- ifelse(test_sys == "systematic",
+                                                               ifelse(test_freq == 0, "workers_leaky",
+                                                                      ifelse(test_freq == 0.5, "workers_leaky_testday1_biweekly",
+                                                                             ifelse(test_freq == 1, "workers_leaky_testday1",
+                                                                                    ifelse(test_freq == 2, "workers_leaky_testday13", "workers_leaky_testday1234")))),
+                                                               ifelse(test_freq == 0.5, "workers_leaky_testday_r1_biweekly",
+                                                                      ifelse(test_freq == 1, "workers_leaky_testday_r1", 
+                                                                             ifelse(test_freq == 2, "workers_leaky_testday_r2", "workers_leaky_testday_r4"))))
+                                  } else if(work_sched == "cohort"){
+                                    workers_use_char <- ifelse(test_sys == "systematic",
+                                                               ifelse(test_freq == 0, "workers_base",
+                                                                      ifelse(test_freq == 0.5, "workers_testday1_biweekly",
+                                                                             ifelse(test_freq == 1, "workers_testday1",
+                                                                                    ifelse(test_freq == 2, "workers_testday13", "workers_testday1234")))),
+                                                               ifelse(test_freq == 0.5, "workers_testday_r1_biweekly",
+                                                                      ifelse(test_freq == 1, "workers_testday_r1", 
+                                                                             ifelse(test_freq == 2, "workers_testday_r2", "workers_testday_r4"))))
+                                    
+                                  } else {
+                                    # Will throw error below
+                                    workers_use_char <- NULL
+                                  }
+                                  
+                                  workers_use <- get(workers_use_char)
+                                  
+                                  sim_work_transmission(Lambda    = comm_prev*dt,
+                                                        Reff      = R,
+                                                        delay     = d,
+                                                        test_thresh = 0,
+                                                        test_spec = 1,
+                                                        test_sens = 1, 
+                                                        workers   = workers_use,
+                                                        sim_t     = sim_t,
+                                                        dt        = dt,
+                                                        verbose   = F)$cases_tests %>% 
+                                    mutate(sim = i,
+                                           lambda = comm_prev, 
+                                           R = R,
+                                           work_sched = work_sched,
+                                           delay = d,
+                                           testsys = test_sys,
+                                           testfreq = test_freq)
+                                  
+                                }))  
+
+stopCluster(clooster)
+
+# Summarise sims to totals at the end of the sim 
+sims_end <- all_sims %>% 
+  group_by(sim, lambda, R, work_sched, delay, testsys, testfreq) %>% 
+  summarise(totcases = sum(exp_cases),
+            totcases2= sum(adj_cases),
+            totdays  = sum(inf_days),
+            tottests = sum(tests_adm)) %>% 
+  ungroup()
+
+# Make sure there's the right number of summaries 
+nrow(sims_end) == nrow(sim_grid_expand)
+
+sims_sum <- sims_end %>% 
+  mutate(tests1000s = tottests/1000) %>% 
+  group_by(lambda, R, work_sched, delay, testsys, testfreq) %>% 
+  summarise(across(.cols = c("totcases", "totcases2", "totdays", "tests1000s"),
+                   .fns  = list("median", "q_25", "q_75"))) %>% 
+  ungroup()
+
+sims_sum_ggplot <- sims_sum %>% 
+  pivot_longer(cols = totcases_1:tests1000s_3,
+               names_sep = "_",
+               names_to = c("measure", ".value")) %>% 
+  rename("Med" = `1`,
+         "q25" = `2`,
+         "q75" = `3`) %>% 
+  mutate(measure = factor(case_when(measure == "totdays" ~ "Infectious Days",
+                                    measure == "tests1000s" ~ "Tests (1000s)",
+                                    measure == "totcases" ~ "Transmissions",
+                                    measure == "totcases2" ~ "Adj. Transmissions"), 
+                          levels = c("Transmissions", "Adj. Transmissions", "Infectious Days", "Tests (1000s)")))
+
+save.image("data/adR_sims.Rdata")
