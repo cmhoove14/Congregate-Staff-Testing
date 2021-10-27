@@ -303,6 +303,8 @@ sims_sum2 <- sims_end %>%
                        .fns  = list("median", "q_25", "q_75"))) %>% 
       ungroup() %>% 
       mutate(peravoided = (refcases_1-totcases_1)/refcases_1,
+             peravoided_lo = (refcases_1-totcases_2)/refcases_2,
+             peravoided_hi = (refcases_1-totcases_3)/refcases_3,
              `Test Strategy` = if_else(testsys == "systematic", "Systematic", "Random"),
              `Test Strategy Delay` = paste0(`Test Strategy`, " - delay ", delay), 
              `Test Frequency`= as.factor(testfreq),
