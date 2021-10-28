@@ -137,8 +137,8 @@ delta_sims_comp %>%
   geom_errorbar(aes(ymin = totcases_3, ymax = totcases_4), position = position_dodge(0.7), width = 0.2) +
   facet_wrap(.~delay_label) +
   scale_color_manual(values = c("grey50", "black")) +
-  scale_y_continuous(limits = c(0,550),
-                     breaks = seq(0,550,by=75)) +
+  # scale_y_continuous(limits = c(0,550),
+  #                    breaks = seq(0,550,by=75)) +
   theme_classic() +
   theme(strip.background = element_blank(),
         strip.text = element_text(face = "bold", size = 14),

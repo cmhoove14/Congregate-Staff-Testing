@@ -15,7 +15,6 @@ set.seed(430)
 
 sim_grid_delta <- expand.grid(test_freq  = c(0,0.5,1,2,4),
                               test_sys   = c("systematic", "random"),
-                              work_sched = c("leaky", "cohort"),
                               delay      = c(0,1,2),
                               comm_prev  = c(lambda1,lambda2,lambda3))
 
@@ -37,9 +36,8 @@ all_sims <- bind_rows(parLapply(cl = clooster,
                                 fun = function(i){
                                   test_freq  = sim_grid_delta_expand[i,1]
                                   test_sys   = sim_grid_delta_expand[i,2]
-                                  work_sched = sim_grid_delta_expand[i,3]
-                                  d          = sim_grid_delta_expand[i,4]
-                                  comm_prev  = sim_grid_delta_expand[i,5]
+                                  d          = sim_grid_delta_expand[i,3]
+                                  comm_prev  = sim_grid_delta_expand[i,4]
                                   
                                     workers_use_char <- ifelse(test_sys == "systematic",
                                                                ifelse(test_freq == 0, "workers_leaky_delta",
