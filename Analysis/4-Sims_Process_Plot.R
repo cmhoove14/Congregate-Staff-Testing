@@ -302,9 +302,9 @@ sims_sum2 <- sims_end %>%
                                  "adjavoidedpertest", "adjITER",),
                        .fns  = list("median", "q_25", "q_75"))) %>% 
       ungroup() %>% 
-      mutate(peravoided = (refcases_1-totcases_1)/refcases_1,
-             peravoided_lo = (refcases_1-totcases_2)/refcases_2,
-             peravoided_hi = (refcases_1-totcases_3)/refcases_3,
+      mutate(peravoided_1 = (refcases_1-totcases_1)/refcases_1,
+             peravoided_2 = (refcases_1-totcases_2)/refcases_2,
+             peravoided_3 = (refcases_1-totcases_3)/refcases_3,
              `Test Strategy` = if_else(testsys == "systematic", "Systematic", "Random"),
              `Test Strategy Delay` = paste0(`Test Strategy`, " - delay ", delay), 
              `Test Frequency`= as.factor(testfreq),
@@ -339,23 +339,25 @@ sims_sum_ggplot <- sims_sum2 %>%
          adjavoidedpertest_1 = if_else(is.infinite(adjavoidedpertest_1), NA_real_, adjavoidedpertest_1),
          adjavoidedpertest_2 = if_else(is.infinite(adjavoidedpertest_2), NA_real_, adjavoidedpertest_2),
          adjavoidedpertest_3 = if_else(is.infinite(adjavoidedpertest_3), NA_real_, adjavoidedpertest_3)) %>% 
-  pivot_longer(cols = totcases_1:adjITER_3,
+  pivot_longer(cols = totcases_1:peravoided_3,
                names_sep = "_",
                names_to = c("measure", ".value")) %>% 
   rename("Med" = `1`,
          "q25" = `2`,
          "q75" = `3`) %>% 
   mutate(measure = factor(case_when(measure == "avoidedpertest" ~ "Transmissions avoided/\n1000 tests",
-                                    measure == "refcases" ~ "Reference tansmissions",
+                                    measure == "refcases" ~ "Reference transmissions",
                                     measure == "totdays" ~ "Infectious Days",
                                     measure == "tests1000s" ~ "Tests (1000s)",
                                     measure == "totcases" ~ "Transmissions",
                                     measure == "adjcases" ~ "Adj. Transmissions",
                                     measure == "casesavoided" ~ "Transmissions avoided",
+                                    measure == "peravoided" ~ "Pct Avoided",
                                     measure == "ITER" ~ "ITER",
                                     measure == "adjITER" ~ "Adj. ITER",
                                     measure == "adjavoidedpertest" ~ "Adj. Transmissions avoided/\n1000 tests"), 
-                          levels = c("Transmissions", "Transmissions avoided", "Adj. Transmissions", "Reference tansmissions", "Infectious Days", 
+                          levels = c("Transmissions", "Transmissions avoided", "Pct Avoided", "Adj. Transmissions", 
+                                     "Reference transmissions", "Infectious Days", 
                                      "Tests (1000s)", "Transmissions avoided/\n1000 tests", "ITER", 
                                      "Adj. ITER", "Adj. Transmissions avoided/\n1000 tests")))
 
