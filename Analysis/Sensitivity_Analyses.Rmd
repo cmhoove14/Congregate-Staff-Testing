@@ -137,7 +137,7 @@ delta_sims_comp %>%
          delta = if_else(delta == 1, "Delta", "Alpha")) %>% 
   ggplot(aes(x = as.factor(testfreq), y = totcases_1, col = as.factor(delta))) +
     geom_point(position = position_dodge(0.7)) +
-    geom_errorbar(aes(ymin = totcases_3, ymax = totcases_4), position = position_dodge(0.7), width = 0.2) +
+    geom_errorbar(aes(ymin = totcases_2, ymax = totcases_3), position = position_dodge(0.7), width = 0.2) +
     facet_wrap(.~delay_label) +
     scale_color_manual(values = c("grey50", "black")) +
     # scale_y_continuous(limits = c(0,550),
@@ -147,10 +147,10 @@ delta_sims_comp %>%
           strip.text = element_text(face = "bold", size = 14),
           strip.placement = "outside",
           panel.border = element_rect(color = "grey50", fill = NA, size = 0.5),
-          axis.title = element_text(size = 11),
-          axis.text = element_text(size = 10)) +
+          axis.title = element_text(size = 13),
+          axis.text = element_text(size = 11)) +
     labs(x = "Test Frequency (weekly)",
-         y = "Expected cases",
+         y = expression(italic(I[tot]^sim)),
          col = "Variant")
 
 ```
@@ -172,13 +172,16 @@ sens_sims_sum %>%
           strip.text = element_text(face = "bold", size = 14),
           strip.placement = "outside",
           panel.border = element_rect(color = "grey50", fill = NA, size = 0.5),
-          axis.title = element_text(size = 11),
-          axis.text = element_text(size = 10)) +
+          axis.title = element_text(size = 13),
+          axis.text = element_text(size = 11)) +
     #geom_hline(yintercept = 150, col = "grey50") +
     #scale_color_manual(values = c("grey50", "black")) +
     labs(x = "Test Sensitivity",
-         y = "Expected cases",
+         y = expression(italic(I[tot]^sim)),
          col = "Test Frequency\n(weekly)")
+
+ggsave(here::here("Plots/TestSens_SuppFig.png"),
+       units = "in", height = 5, width = 7)
 
 ```
 
@@ -198,6 +201,8 @@ iso_sims_sum %>%
     labs(x = "Proportion symptomatic who self isolate",
          y = expression(italic(I[tot]^sim)))
 
+ggsave(here::here("Plots/SelfIso_Sims_SuppFig.png"),
+       units = "in", height = 5, width = 6)
 ```
 
 ```{r selfiso_avoided, include=F, fig.height=4, fig.width=4, fig.cap="The advantages of systematic testing are diminished when more people self isolate, but are still present even under full compiance with self isolation"}
