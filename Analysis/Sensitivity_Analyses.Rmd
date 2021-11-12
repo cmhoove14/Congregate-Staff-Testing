@@ -27,10 +27,10 @@ sims_end_delta <- readRDS(here::here("data/delta_sims_end_totals.RDS"))
 sims_end_comp <- bind_rows(sims_end, sims_end_delta)
 
 delta_sims_comp <- sims_end_comp %>% 
-  filter(R == 1.5, work_sched == "leaky", testsys == "systematic") %>% 
+  filter(R == R3, work_sched == "leaky", testsys == "systematic") %>% 
   group_by(lambda, delay, testfreq, delta) %>% 
   summarise(across(.cols = c("totcases", "totdays", "tottests"),
-                   .fns  = list("median", "q_025", "q_25", "q_75", "q_975"))) %>% 
+                   .fns  = list("median", "q_25", "q_75"))) %>% 
   ungroup()
 
 # Test sensitivity sensitivity analysis
@@ -105,13 +105,13 @@ delta_profiles <- bind_rows(lapply(1:1000, function(x){
                 "variant" = "Delta"))
 }))
 
-comp_profs <- bind_rows(alpha_profiles, delta_profiles)
-
-comp_profs_plot <- comp_profs %>% 
+comp_profs <- bind_rows(alpha_profiles, delta_profiles) %>% 
   group_by(t, variant) %>% 
   summarise(totbeta = sum(beta),
             sebeta = sqrt(var(beta)),
-            meanbeta = totbeta/1000) %>% 
+            meanbeta = totbeta/1000)
+
+comp_profs_plot <- comp_profs %>% 
   ggplot(aes(x = t, y = meanbeta, col = variant, fill = variant)) +
     geom_line(size = 1.2) +
     #geom_ribbon(aes(ymin = meanbeta-sebeta, ymax = meanbeta+sebeta), alpha = 0.2) +
@@ -192,6 +192,7 @@ iso_sims_sum %>%
     geom_errorbar(aes(ymin = totcases_3, ymax = totcases_4),
                   width = 0.05, position = position_dodge(0.01)) +
     scale_x_continuous(breaks = seq(0,1,0.1)) +
+    scale_y_continuous(breaks = c(0,5,10,15,20), limits = c(0,20)) +
     theme_classic() +
     theme(legend.position = c(0.8,0.8)) +
     labs(x = "Proportion symptomatic who self isolate",
@@ -199,7 +200,7 @@ iso_sims_sum %>%
 
 ```
 
-```{r selfiso_avoided, include=T, fig.height=4, fig.width=4, fig.cap="The advantages of systematic testing are diminished when more people self isolate, but are still present even under full compiance with self isolation"}
+```{r selfiso_avoided, include=F, fig.height=4, fig.width=4, fig.cap="The advantages of systematic testing are diminished when more people self isolate, but are still present even under full compiance with self isolation"}
 iso_sims_sum %>% 
   dplyr::select(p_selfiso:totcases_1) %>% 
   pivot_wider(names_from = testsys,
