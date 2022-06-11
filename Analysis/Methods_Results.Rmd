@@ -318,6 +318,10 @@ Figure 1c shows distributions of $R_{iso}$ derived from 100 random draws samplin
 
 ggsave(here::here("Plots/Framework_Analysis.png"),
        units = "in", height = 6, width = 7)
+
+ggsave(here::here("Plots/submit/Figure1.jpg"),
+       units = "in", height = 6, width = 6.5, dpi = 600)
+
 ```
 
 *[Fig 1 caption continued]*  
@@ -408,8 +412,9 @@ sims_sum_ggplot %>%
     labs(y = expression(bold(I[" sim"]^" tot")),
          shape = "Test Strategy &\nDelay")
 
-ggsave(here::here("Plots/Fig3_expected_transmissions.png"),
-       units = "in", height = 5, width = 7)
+ggsave(here::here("Plots/submit/Figure3.jpg"),
+       units = "in", height = 5, width = 6.5, dpi = 600)
+
 ```
 
 ```{r rec_table, include = TRUE}
@@ -496,5 +501,9 @@ sims_sum_ggplot %>%
 
 ggsave(here::here("Plots/Fig4_ITER.png"),
        units = "in", height = 4, width = 7)
+
+ggsave(here::here("Plots/submit/Figure4.jpg"),
+       units = "in", height = 4, width = 6.5, dpi = 600)
+
 ```
 
